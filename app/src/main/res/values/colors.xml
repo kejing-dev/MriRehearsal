@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- App icon background: magnet deep blue, unique to this app in the factory (side-session-notes/icon-colors.md). -->
+    <color name="ic_launcher_background">#17324D</color>
+</resources>

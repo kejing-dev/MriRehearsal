@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- gear: ring with eight teeth -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:fillType="evenOdd"
+        android:pathData="M12,8.2a3.8,3.8 0 1,0 0,7.6a3.8,3.8 0 1,0 0,-7.6z M12,5.4a6.6,6.6 0 1,0 0,13.2a6.6,6.6 0 1,0 0,-13.2z" />
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M10.8,2h2.4v4h-2.4z M10.8,18h2.4v4h-2.4z M2,10.8h4v2.4h-4z M18,10.8h4v2.4h-4z M4.2,5.9l1.7,-1.7l2.8,2.8l-1.7,1.7z M15.3,17l1.7,-1.7l2.8,2.8l-1.7,1.7z M4.2,18.1l2.8,-2.8l1.7,1.7l-2.8,2.8z M15.3,7l2.8,-2.8l1.7,1.7l-2.8,2.8z" />
+</vector>

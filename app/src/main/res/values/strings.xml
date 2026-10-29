@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">MRI Rehearsal</string>
+    <string name="loading">Setting up the scan room…</string>
+    <string name="app_title">MRI Rehearsal</string>
+    <string name="disclaimer">This is a rehearsal, not a medical device. Follow your hospital\'s instructions.</string>
+    <string name="posture_label">Detected:</string>
+    <string name="posture_lie">Lying down ✓</string>
+    <string name="posture_sit">Sitting</string>
+    <string name="posture_finding">Finding the headset position…</string>
+    <string name="link_sit">I want to sit</string>
+    <string name="link_lie">I\'m lying down</string>
+    <string name="enter">Enter scan room</string>
+    <string name="settings">Settings</string>
+    <string name="mute">Mute</string>
+    <string name="unmute">Sound on</string>
+    <string name="room_title">Scan room</string>
+    <string-array name="levels">
+        <item>① Tour the room</item>
+        <item>② 30 seconds</item>
+        <item>③ 2 minutes</item>
+        <item>④ 5 minutes</item>
+    </string-array>
+    <string name="tour_stops">%1$d stops</string>
+    <string name="best_none">—</string>
+    <string name="best_fmt">%1$s %2$d</string>
+    <string name="drag_hint">Drag the bar below to move</string>
+    <string name="recenter">Re-centre</string>
+    <string name="lost_short">Tracking lost — hold on</string>
+
+    <string name="called">Technologist called</string>
+    <string name="called_body">We heard you. Pausing now.</string>
+    <string name="resume">Resume scan</string>
+    <string name="finish">Slide out &amp; finish</string>
+    <string name="done_of">Done %1$s / %2$s</string>
+    <string name="lost_pause">Tracking lost — the card stays here.</string>
+
+    <string name="result">Scan complete</string>
+    <string-array name="grades">
+        <item>Steady</item>
+        <item>Good</item>
+        <item>Try again</item>
+    </string-array>
+    <string name="score_label">Stillness</string>
+    <string name="events_fmt">Big movements: %1$d · small: %2$d s</string>
+    <string name="verdict_redo">By usual standards this sequence would be repeated.</string>
+    <string name="verdict_ok">By usual standards this would pass first time.</string>
+    <string name="next_level">Next level</string>
+    <string name="retry">Try again</string>
+    <string name="back_room">Back to room</string>
+    <string name="legend">amber: small movement · red: big · grey: break</string>
+
+    <string name="settings_title">Settings</string>
+    <string name="language">Language</string>
+    <string name="lang_zh">中文</string>
+    <string name="lang_en">English</string>
+    <string name="bore">Bore</string>
+    <string name="bore_60">60 cm</string>
+    <string name="bore_70">70 cm</string>
+    <string name="hint">Movement hint</string>
+    <string name="coil">Head coil</string>
+    <string name="skip">Skip slide animation</string>
+    <string name="volume">Volume</string>
+    <string name="about">About</string>
+    <string name="clear_scores">Clear scores</string>
+    <string name="back">Back</string>
+
+    <string name="about_title">About</string>
+    <string name="version_fmt">Version %1$s</string>
+    <string name="about_ack">Thanks to Little Journey and Michigan Medicine, whose MRI preparation experiences inspired this rehearsal.</string>
+    <string name="about_audio">Scanner sounds: synthesised for this app, no recordings. Free to use.</string>
+    <string name="about_oss">Fonts: Noto Sans, Noto Sans SC (SIL Open Font License 1.1).</string>
+
+    <string name="cap_table">The table is moving now —|that\'s normal.</string>
+    <string name="cap_settle_3">Hold this position: 3…</string>
+    <string name="cap_settle_2">Hold this position: 3… 2…</string>
+    <string name="cap_settle_1">Hold this position: 3… 2… 1.</string>
+    <string name="cap_seq_start">The next %1$s are loud.|Please keep still.</string>
+    <string name="dur_seconds">%1$d seconds</string>
+    <string name="cap_earplug">The real scanner is louder.|The hospital gives you earplugs.</string>
+    <string name="cap_hold">Please keep still.</string>
+    <string name="cap_gap_louder">Well done. Relax, breathe normally.|The next part is louder.</string>
+    <string name="cap_gap_quieter">Well done. Relax, breathe normally.|The next part is quieter.</string>
+    <string name="cap_gap_same">Well done. Relax, breathe normally.|The next part is about as loud.</string>
+    <string name="cap_last">This is the last one.</string>
+    <string name="cap_done">All done —|the table is coming out.</string>
+    <string name="cap_called">We heard you. Stopping now|and sliding you out a little.</string>
+    <string name="cap_lost">Tracking lost — don\'t worry,|the scan is paused.</string>
+    <string name="progress_fmt">%1$s · %2$s / %3$s</string>
+    <string name="seq_loc">Localizer</string>
+    <string name="seq_t1">T1-weighted</string>
+    <string name="seq_t2">T2 FLAIR</string>
+    <string name="seq_epi">Diffusion</string>
+    <string name="seq_gap">Break</string>
+    <string name="seq_table">Table</string>
+
+    <string-array name="tour_names">
+        <item>Gantry and bore</item>
+        <item>Scan table</item>
+        <item>Head coil</item>
+        <item>Call ball</item>
+        <item>Intercom and window</item>
+    </string-array>
+    <string-array name="tour_bodies">
+        <item>The magnet is inside this white shell. This bore is %1$d cm wide; your head will be in its middle.</item>
+        <item>You lie on this table. It slides you slowly into the bore, and back out at the end.</item>
+        <item>An open cage around your head that picks up the signal. It is open in front of your face.</item>
+        <item>Squeeze it whenever you want to stop. Here, hold the trigger or pinch and hold — try it.</item>
+        <item>The technologist watches through this window and talks to you through the speaker on the gantry.</item>
+    </string-array>
+    <string name="tour_behind">(Behind you — turn round.)</string>
+    <string name="tour_demo">That\'s a call — the technologist answers right away.</string>
+    <string name="prev">Previous</string>
+    <string name="next_fmt">Next (%1$d/%2$d)</string>
+</resources>

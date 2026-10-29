@@ -1,0 +1,20 @@
+*.iml
+.gradle
+/local.properties
+/.idea
+.DS_Store
+/build
+/app/build
+/captures
+.externalNativeBuild
+.cxx
+/docs/screenshots/*-raw.png
+/docs/screenshots/*-crop.png
+/docs/screenshots/*-cli.png
+/deliverables
+
+*.apk
+.scratch/
+.kotlin/
+# Emulator harness runtime state
+tools/harness/.state/

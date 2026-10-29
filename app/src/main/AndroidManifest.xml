@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- Fully offline: no permissions at all (no camera, location, scene, microphone, network, eye tracking). -->
+
+    <application
+        android:name=".platform.SpatialApplication"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="@xml/backup_rules"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.MriRehearsal"
+        tools:targetApi="31">
+
+        <activity
+            android:name=".platform.LaunchActivity"
+            android:exported="true"
+            android:theme="@style/Theme.MriRehearsal">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+
+            <!-- The default Stage holds the whole app: Progressive style (2), launched at immersion 100 (= the
+                 virtual scan room only); the crown can turn it down to 40 to see the real bedroom. Not 0: at 0 a
+                 Progressive Stage renders no virtual content. The app itself never changes the immersion.
+                 Style values: 0 Automatic, 1 Mixed, 2 Progressive, 3 Full (SDK 6.1 declare-a-stage). -->
+            <meta-data android:name="pico.spatial.stage.id" android:value="MriStage" />
+            <meta-data android:name="pico.spatial.stage.style" android:value="2" />
+            <meta-data android:name="pico.spatial.stage.immersion" android:value="100" />
+            <meta-data android:name="pico.spatial.stage.immersion_min" android:value="40" />
+            <meta-data android:name="pico.spatial.stage.immersion_max" android:value="100" />
+        </activity>
+
+        <!-- QA hook: switches the app to any named state over adb (see AGENTS.md). Only acts in debuggable builds. -->
+        <receiver
+            android:name=".debug.DebugCommandReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="io.embodit.mrirehearsal.DEBUG" />
+            </intent-filter>
+        </receiver>
+    </application>
+
+</manifest>

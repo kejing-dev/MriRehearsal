@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">磁共振预习</string>
+    <string name="loading">正在布置扫描室…</string>
+    <string name="app_title">磁共振预习</string>
+    <string name="disclaimer">这是预习，不是医疗器械；具体检查以医院指引为准。</string>
+    <string name="posture_label">检测到：</string>
+    <string name="posture_lie">躺着 ✓</string>
+    <string name="posture_sit">坐着</string>
+    <string name="posture_finding">正在找头显位置</string>
+    <string name="link_sit">我要坐着练</string>
+    <string name="link_lie">我躺好了</string>
+    <string name="enter">进扫描室</string>
+    <string name="settings">设置</string>
+    <string name="mute">静音</string>
+    <string name="unmute">取消静音</string>
+    <string name="room_title">扫描室</string>
+    <string-array name="levels">
+        <item>① 认识扫描室</item>
+        <item>② 30 秒</item>
+        <item>③ 2 分钟</item>
+        <item>④ 5 分钟</item>
+    </string-array>
+    <string name="tour_stops">%1$d 个点</string>
+    <string name="best_none">—</string>
+    <string name="best_fmt">%1$s %2$d</string>
+    <string name="drag_hint">拖下方横条可挪动卡片</string>
+    <string name="recenter">重新对位</string>
+    <string name="lost_short">追踪丢了，稍等</string>
+
+    <string name="called">已呼叫技师</string>
+    <string name="called_body">我们听到了，先停下来。</string>
+    <string name="resume">继续扫描</string>
+    <string name="finish">出舱结束</string>
+    <string name="done_of">已完成 %1$s / %2$s</string>
+    <string name="lost_pause">追踪丢了，卡片先留在这里。</string>
+
+    <string name="result">扫完了</string>
+    <string-array name="grades">
+        <item>稳</item>
+        <item>良</item>
+        <item>再练</item>
+    </string-array>
+    <string name="score_label">静止分</string>
+    <string name="events_fmt">大动 %1$d 次 · 微动 %2$d 秒</string>
+    <string name="verdict_redo">按常见要求，这样的动作通常要重做这一段。</string>
+    <string name="verdict_ok">按常见要求，这样可以一次完成。</string>
+    <string name="next_level">下一关</string>
+    <string name="retry">再来一次</string>
+    <string name="back_room">回扫描室</string>
+    <string name="legend">琥珀 = 微动 · 红点 = 大动 · 灰 = 间歇</string>
+
+    <string name="settings_title">设置</string>
+    <string name="language">语言</string>
+    <string name="lang_zh">中文</string>
+    <string name="lang_en">English</string>
+    <string name="bore">孔径</string>
+    <string name="bore_60">60 cm</string>
+    <string name="bore_70">70 cm</string>
+    <string name="hint">动了提醒</string>
+    <string name="coil">头线圈</string>
+    <string name="skip">跳过进出动画</string>
+    <string name="volume">音量</string>
+    <string name="about">关于</string>
+    <string name="clear_scores">清除成绩</string>
+    <string name="back">返回</string>
+
+    <string name="about_title">关于</string>
+    <string name="version_fmt">版本 %1$s</string>
+    <string name="about_ack">致谢 Little Journey 与 Michigan Medicine：它们的磁共振检查预习体验启发了本应用。</string>
+    <string name="about_audio">扫描声：为本应用合成，不是录音，可自由使用。</string>
+    <string name="about_oss">字体：Noto Sans、Noto Sans SC（SIL 开源字体许可 1.1）。</string>
+
+    <string name="cap_table">台子要动了，这是正常的。</string>
+    <string name="cap_settle_3">保持这个姿势，3…</string>
+    <string name="cap_settle_2">保持这个姿势，3、2…</string>
+    <string name="cap_settle_1">保持这个姿势，3、2、1。</string>
+    <string name="cap_seq_start">接下来 %1$s 会很响，|请保持不动。</string>
+    <string name="dur_seconds">%1$d 秒</string>
+    <string name="cap_earplug">真机更响。|医院会给你耳塞。</string>
+    <string name="cap_hold">请保持不动。</string>
+    <string name="cap_gap_louder">做得很好，放松，正常呼吸。|下一段会更响一些。</string>
+    <string name="cap_gap_quieter">做得很好，放松，正常呼吸。|下一段轻一点。</string>
+    <string name="cap_gap_same">做得很好，放松，正常呼吸。|下一段差不多响。</string>
+    <string name="cap_last">最后一段了。</string>
+    <string name="cap_done">扫完了，台子出来了。</string>
+    <string name="cap_called">我们听到了，先停下来，|把你送出来一点。</string>
+    <string name="cap_lost">追踪丢了，别担心，扫描暂停</string>
+    <string name="progress_fmt">%1$s · %2$s / %3$s</string>
+    <string name="seq_loc">定位像</string>
+    <string name="seq_t1">T1 加权</string>
+    <string name="seq_t2">T2 FLAIR</string>
+    <string name="seq_epi">弥散 DWI</string>
+    <string name="seq_gap">间歇</string>
+    <string name="seq_table">检查台</string>
+
+    <string-array name="tour_names">
+        <item>机架与孔洞</item>
+        <item>检查台</item>
+        <item>头线圈</item>
+        <item>呼叫球</item>
+        <item>对讲与技师窗</item>
+    </string-array>
+    <string-array name="tour_bodies">
+        <item>磁体就在这圈白色外壳里。这台的孔洞直径 %1$d 厘米，检查时头在孔洞正中。</item>
+        <item>你躺在这张台上，台子会把你慢慢送进孔洞，结束后再送出来。</item>
+        <item>罩在头周围的开口笼子，用来接收信号。脸前是开口，看得到外面。</item>
+        <item>想停就捏它。这里用手柄扳机长按，或捏住不放，试一下。</item>
+        <item>技师在窗后看着你，通过机架上的喇叭和你说话。</item>
+    </string-array>
+    <string name="tour_behind">（在你身后，转身看）</string>
+    <string name="tour_demo">这是呼叫：技师马上就会回应。</string>
+    <string name="prev">上一个</string>
+    <string name="next_fmt">下一个 (%1$d/%2$d)</string>
+</resources>
