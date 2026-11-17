@@ -133,12 +133,15 @@ fun MriWindow() {
 
 // --------------------------------------------------------------------------------------------- frame of a page
 
-/** Every page: 32 / 24 dp margins; a short page spreads its blocks over the height (whitespace ≤ 25 %, D44). */
+/**
+ * Every page: 32 / 24 dp margins. A short page spreads its blocks from top to bottom (SpaceBetween: outer whitespace is
+ * the margins only, 8 %; emulator measure: centred or SpaceEvenly pages left 26–38 % blank, D44 ≤ 25 %).
+ */
 @Composable
 private fun Page(spread: Boolean = false, content: @Composable ColumnScope.() -> Unit) {
     Column(
         modifier = Modifier.fillMaxSize().padding(horizontal = 32.dp, vertical = 24.dp),
-        verticalArrangement = if (spread) Arrangement.SpaceEvenly else Arrangement.spacedBy(16.dp, Alignment.CenterVertically),
+        verticalArrangement = if (spread) Arrangement.SpaceBetween else Arrangement.spacedBy(16.dp, Alignment.CenterVertically),
         content = content,
     )
 }
@@ -195,6 +198,10 @@ private fun LoadingPage(state: UiState, vm: MriViewModel) {
         Header(str(R.string.app_title), state, vm)
         Txt(str(R.string.loading), style = PicoTheme.typography.titleLarge, color = PicoTheme.colorScheme.labelPrimary)
         Body(str(R.string.disclaimer))
+        Row(modifier = Modifier.fillMaxWidth().heightIn(min = MIN_TOUCH), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(BUTTON_GAP)) {
+            Icon(painter = painterResource(R.drawable.ic_sit), contentDescription = null, modifier = Modifier.size(32.dp), tint = PicoTheme.colorScheme.labelPrimary)
+            Txt(str(R.string.posture_finding), style = PicoTheme.typography.titleMedium, color = PicoTheme.colorScheme.labelPrimary, modifier = Modifier.weight(1f))
+        }
         Body(str(R.string.ready_next))
     }
 }
@@ -266,7 +273,8 @@ private fun TourPage(state: UiState, vm: MriViewModel) {
                 PrimaryButton(str(R.string.back_room), onClick = { vm.tourBack() }, modifier = Modifier.weight(1f))
             }
         }
-        if (i < stops.lastIndex) LinkText(str(R.string.back_room), onClick = { vm.tourBack() })
+        // the last stop offers the next step (and keeps the page's blocks spread: whitespace band ≤ 20 %, emulator measure)
+        if (i < stops.lastIndex) LinkText(str(R.string.back_room), onClick = { vm.tourBack() }) else LinkText(str(R.string.tour_go_l1), onClick = { vm.selectLevel(Level.L1) })
     }
 }
 
@@ -287,6 +295,18 @@ private fun RunPage(state: UiState, vm: MriViewModel) {
                     }
                 Txt(word, style = PicoTheme.typography.titleMedium, color = PicoTheme.colorScheme.labelSecondary)
             }
+        }
+        // the level's progress: a bar over the whole run (gaps included) and the time done
+        Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            val total = state.level.totalSec.toFloat().coerceAtLeast(1f)
+            val done = state.clock.levelSec.coerceIn(0f, total)
+            val track = PicoTheme.colorScheme.fillSecondary
+            val fill = PicoTheme.colorScheme.interaction
+            Canvas(modifier = Modifier.fillMaxWidth().height(10.dp)) {
+                drawRoundRect(track, size = size, cornerRadius = CornerRadius(size.height / 2, size.height / 2))
+                drawRoundRect(fill, size = Size(size.width * done / total, size.height), cornerRadius = CornerRadius(size.height / 2, size.height / 2))
+            }
+            Txt(str(R.string.done_of, clockText(done), clockText(total)), style = PicoTheme.typography.labelLarge, color = PicoTheme.colorScheme.labelSecondary)
         }
         CaptionLine(captionText(state.caption), PicoTheme.typography.headlineSmall, 2, align = androidx.compose.ui.text.style.TextAlign.Start)
         if (state.lost) StatusLine(str(R.string.lost_short), MriColors.Minor, style = PicoTheme.typography.bodyLarge)
@@ -331,7 +351,7 @@ private fun PausePage(state: UiState, vm: MriViewModel) {
 private fun ResultPage(state: UiState, vm: MriViewModel) {
     val result = state.result ?: return
     val grades = strArray(R.array.grades)
-    Page {
+    Page(spread = true) {
         Header(str(R.string.result), state, vm, sub = levelName(result.level))
         Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(BUTTON_GAP)) {
             Txt("${result.score}", style = PicoTheme.typography.displayLarge.copy(fontFeatureSettings = "tnum", fontWeight = FontWeight.SemiBold), color = PicoTheme.colorScheme.labelPrimary)
@@ -412,15 +432,15 @@ private val HOW_TO =
 
 @Composable
 private fun HowToPage() {
-    Page {
+    Page(spread = true) {
         Txt(str(R.string.how_to_title), style = PicoTheme.typography.headlineMedium, color = PicoTheme.colorScheme.labelPrimary)
         for (h in HOW_TO) {
             Row(verticalAlignment = Alignment.Top, modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                 Icon(painter = painterResource(h.icon), contentDescription = null, modifier = Modifier.size(28.dp), tint = PicoTheme.colorScheme.labelPrimary)
                 Column(modifier = Modifier.weight(1f)) {
                     Txt(str(h.title), style = PicoTheme.typography.labelLarge, color = PicoTheme.colorScheme.labelPrimary)
-                    Txt(str(R.string.how_to_hands_line, str(h.hands)), style = PicoTheme.typography.bodySmall, color = PicoTheme.colorScheme.labelSecondary, maxLines = 2)
-                    Txt(str(R.string.how_to_ctrl_line, str(h.controller)), style = PicoTheme.typography.bodySmall, color = PicoTheme.colorScheme.labelSecondary, maxLines = 2)
+                    Txt(str(R.string.how_to_hands_line, str(h.hands)), style = PicoTheme.typography.bodyMedium, color = PicoTheme.colorScheme.labelSecondary, maxLines = 2)
+                    Txt(str(R.string.how_to_ctrl_line, str(h.controller)), style = PicoTheme.typography.bodyMedium, color = PicoTheme.colorScheme.labelSecondary, maxLines = 2)
                 }
             }
         }
@@ -480,7 +500,8 @@ private fun SettingsPage(state: UiState, vm: MriViewModel) {
                         selected = s.language == option,
                         onClick = { vm.setLanguage(option) },
                         modifier = Modifier.width(120.dp).height(MIN_TOUCH),
-                        title = { Txt(if (option == AppLanguage.ZH) str(R.string.lang_zh) else str(R.string.lang_en)) },
+                        // text in labelPrimary both ways: the unselected default grey measured 2.74:1 on the segment track
+                        title = { Txt(if (option == AppLanguage.ZH) str(R.string.lang_zh) else str(R.string.lang_en), color = PicoTheme.colorScheme.labelPrimary) },
                     )
                 }
             }
@@ -492,7 +513,7 @@ private fun SettingsPage(state: UiState, vm: MriViewModel) {
                         selected = s.boreCm == cm,
                         onClick = { vm.updateSettings { it.copy(boreCm = cm) } },
                         modifier = Modifier.width(120.dp).height(MIN_TOUCH),
-                        title = { Txt(if (cm == 60) str(R.string.bore_60) else str(R.string.bore_70)) },
+                        title = { Txt(if (cm == 60) str(R.string.bore_60) else str(R.string.bore_70), color = PicoTheme.colorScheme.labelPrimary) },
                     )
                 }
             }

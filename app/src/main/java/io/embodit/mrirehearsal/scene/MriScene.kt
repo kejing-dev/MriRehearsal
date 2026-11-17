@@ -216,6 +216,7 @@ class MriScene(private val vm: MriViewModel, private val head: HeadTracker, priv
 
     private var lastStripWarm: Boolean? = null
     private var lastCoilLit: Boolean? = null
+    private var coilFacesWindow: Boolean? = null
     private var lastHighlight: TourStop? = null
     private var lastTestTex: Boolean? = null
     private var tourHitsOn = true
@@ -501,7 +502,7 @@ class MriScene(private val vm: MriViewModel, private val head: HeadTracker, priv
         if (meshWork.isEmpty()) return
         val n = if (dt < FAST_FRAME_SEC) 2 else if (now - lastMeshMs >= SLOW_MESH_GAP_MS) 1 else 0
         repeat(n) {
-            val (name, work) = meshWork.removeFirstOrNull() ?: return
+            val (name, work) = meshWork.removeFirstOrNull() ?: return@repeat // not `return`: that skipped "build done" and onBuilt() when the queue emptied mid-frame (S01 then waited for the 10 s fallback)
             val t0 = SystemClock.elapsedRealtime()
             runCatching { work() }.onFailure { MriLog.e("SCENE build '$name' failed: $it", it) }
             lastMeshMs = SystemClock.elapsedRealtime()
@@ -634,6 +635,13 @@ class MriScene(private val vm: MriViewModel, private val head: HeadTracker, priv
             stripMaterial?.setBaseColor((if (warm) MriColors.BoreLightWarm else MriColors.BoreLight).color4())
         }
         coil?.setVisible(state.settings.headCoil)
+        // sitting, the coil's open face turns with the user: towards the window outside a run (its rods stood in front
+        // of the window otherwise, emulator default view), towards the bore in a run (v0.1.1, the gantry 80 deg right)
+        val facesWindow = f.posture == Posture.SIT && !(state.screen.inRun || state.screen == Screen.S09 || state.screen == Screen.S10)
+        if (facesWindow != coilFacesWindow || layoutPosture == null) {
+            coilFacesWindow = facesWindow
+            if (f.posture == Posture.SIT) coil?.setLocal(position = V3(0f, 0f, 0.06f), rotation = sittingCoil(facesWindow))
+        }
 
         placePanels(state, pose, f)
         placeTour(state, pose, f)
@@ -699,6 +707,15 @@ class MriScene(private val vm: MriViewModel, private val head: HeadTracker, priv
         return Occlusion.PanelRect(w.center, rot, WindowLayout.W_DP * WindowLayout.DP_M, WindowLayout.H_DP * WindowLayout.DP_M)
     }
 
+    /**
+     * Sitting coil: axis vertical, open face towards the gantry (−b); [towardsWindow] turns it left by the gantry's
+     * offset, so the face is open towards the window (WindowLayout.GANTRY_YAW_SIT_DEG).
+     */
+    private fun sittingCoil(towardsWindow: Boolean): Q4 {
+        val axisUp = Q4.axisAngle(V3.RIGHT, -90f)
+        return if (towardsWindow) (Q4.axisAngle(V3.UP, WindowLayout.GANTRY_YAW_SIT_DEG) * axisUp).normalized() else axisUp
+    }
+
     /** Positions that depend only on the frame's posture (room heights, table, coil axis). */
     private fun layout(f: ScanFrame) {
         layoutPosture = f.posture
@@ -740,7 +757,7 @@ class MriScene(private val vm: MriViewModel, private val head: HeadTracker, priv
             coil?.setLocal(position = V3(0f, -0.06f, 0f), rotation = Q4.IDENTITY)
         } else {
             ball?.setLocal(position = V3(rs * 0.18f, -0.55f, -0.25f), scale = V3(BALL_R, BALL_R, BALL_R))
-            coil?.setLocal(position = V3(0f, 0f, 0.06f), rotation = Q4.axisAngle(V3.RIGHT, -90f))
+            coil?.setLocal(position = V3(0f, 0f, 0.06f), rotation = sittingCoil(coilFacesWindow == true))
         }
         MriLog.i("SCENE layout posture=${f.posture} floorY=$floorY")
     }

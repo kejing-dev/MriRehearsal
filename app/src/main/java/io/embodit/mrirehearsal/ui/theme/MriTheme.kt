@@ -43,6 +43,15 @@ object MriColors {
     val WindowWarm = Color(0xFFF6D9A8)
     val TourHighlight = Color(0xFF5AA9E6)
 
+    /**
+     * Primary button fill: white text 6.9:1 (the scheme's interaction blue rendered #1886FF on the emulator, white on it
+     * measured 3.46:1).
+     */
+    val PrimaryFill = Color(0xFF1F5AA6)
+
+    /** Link text on the light window glass (#D7D6D5 measured): 5.6:1; the Link's own blue measured 2.74:1. */
+    val LinkOnGlass = Color(0xFF1D4F91)
+
     // ui (status colours; the 16 colour-scheme roles stay PicoTheme's)
     val Accent = Color(0xFF2F6DB5)
     val Still = Color(0xFFFFFFFF)
@@ -91,6 +100,8 @@ fun AppLocale(language: AppLanguage, content: @Composable () -> Unit) {
     CompositionLocalProvider(LocalAppResources provides resources, LocalAppLanguage provides language) {
         val base = PicoTheme.typography
         val typography = rememberNotoTypography(base, language)
+        // note: PicoTheme(typography = …) puts PicoTheme's default colour scheme back (all text roles measured fine on
+        // the glass); the primary button therefore sets its own fill (Common.PrimaryButton, MriColors.PrimaryFill)
         PicoTheme(typography = typography, content = content)
     }
 }

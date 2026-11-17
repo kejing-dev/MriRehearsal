@@ -104,9 +104,9 @@
     <string name="dur_seconds">%1$d seconds</string>
     <string name="cap_earplug">The real scanner is louder.|The hospital gives you earplugs.</string>
     <string name="cap_hold">Please keep still.</string>
-    <string name="cap_gap_louder">Well done. Relax, breathe normally.|The next part is louder.</string>
-    <string name="cap_gap_quieter">Well done. Relax, breathe normally.|The next part is quieter.</string>
-    <string name="cap_gap_same">Well done. Relax, breathe normally.|The next part is about as loud.</string>
+    <string name="cap_gap_louder">Well done. Breathe easy.|The next part is louder.</string>
+    <string name="cap_gap_quieter">Well done. Breathe easy.|The next part is quieter.</string>
+    <string name="cap_gap_same">Well done. Breathe easy.|The next part is about as loud.</string>
     <string name="cap_last">This is the last one.</string>
     <string name="cap_done">All done —|the table is coming out.</string>
     <string name="cap_called">We heard you. Stopping now|and sliding you out.</string>
@@ -138,6 +138,7 @@
     <string name="tour_demo">That\'s a call — the technologist answers right away.</string>
     <string name="tour_tap_hint">Tip: tap a lit object in the room to jump to it.</string>
     <string name="tour_of">%1$d / %2$d</string>
+    <string name="tour_go_l1">Go on to the 30-second scan</string>
     <string name="prev">Previous</string>
     <string name="next_fmt">Next (%1$d/%2$d)</string>
 

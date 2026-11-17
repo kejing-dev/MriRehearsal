@@ -73,7 +73,7 @@ posture judge, the level gate and the placement origin (`apps/mri-rehearsal/buil
 - [Bring back in front] (Settings first screen, scan page S02): close → wait for ON_DESTROY → open (an open right
   after a close is swallowed, native-window-move §3.5). The Stage chip "Open panel" shows while the window is closed
   (its ×) or minimised; a minimised window is restored where it was.
-- The in-bore readout (`CaptionStrip`, 420 × 96 dp) stays a reading fixed on the bore (template §3.6 / §6): in Full
+- The in-bore readout (`CaptionStrip`, 420 × 108 dp) stays a reading fixed on the bore (template §3.6 / §6): in Full
   Space the gantry hides the window while the head is in the bore. The window's scan page shows the same lines.
 - Quit (Settings → Quit app → Quit): release the scene and the sound, close the window container, close the Stage,
   `finishAndRemoveTask`, `exitProcess` 400 ms later (`ui/window/MainWindow.exitApp`).

@@ -40,7 +40,8 @@ import kotlinx.coroutines.withTimeoutOrNull
 
 /** Sizes of the Stage's two small panels, dp. */
 object PanelSizes {
-    val CAPTION = IntSize(420, 96)
+    // 108 dp (v0.1.0: 96): the Chinese font's 24 sp line did not fit under the 48 dp mute row (OVERFLOW strip/…, emulator)
+    val CAPTION = IntSize(420, 108)
     val CHIP = IntSize(360, 120)
 }
 

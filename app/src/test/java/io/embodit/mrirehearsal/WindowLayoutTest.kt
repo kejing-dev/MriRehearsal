@@ -130,12 +130,12 @@ class WindowLayoutTest {
 
     @Test
     fun lyingCaptionPrePositionIsOutsideTheWindowAboveTheFace() {
-        // MriScene.captionPlace before the head is in the bore: 0.6 m up, 0.32 m towards the feet, 420 x 96 dp at 0.8
+        // MriScene.captionPlace before the head is in the bore: 0.6 m up, 0.32 m towards the feet, 420 x 108 dp at 0.8
         val eye = V3(0f, 0.75f, 0f)
         val rot = lying()
         val frame = WindowLayout.frameFor(eye, rot, Posture.LIE)
         val strip = frame.at(0.32f, 0f, 0.6f)
-        val halfH = 96 * WindowLayout.DP_M * 0.8f / 2f
+        val halfH = 108 * WindowLayout.DP_M * 0.8f / 2f
         val nearEdge = strip - frame.b * halfH // its edge towards the head
         val o = WindowLayout.outline(WindowLayout.actualWindow(eye, rot, Posture.LIE))
         // the strip's near edge is further towards the feet (from the eye) than the window's controls edge

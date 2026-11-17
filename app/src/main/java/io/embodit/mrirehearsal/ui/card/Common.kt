@@ -84,7 +84,7 @@ fun PrimaryButton(label: String, onClick: () -> Unit, modifier: Modifier = Modif
         onClick = onClick,
         modifier = modifier.heightIn(min = height),
         enabled = enabled,
-        colors = ButtonDefaults.buttonColors(containerColor = PicoTheme.colorScheme.interaction, contentColor = Color.White),
+        colors = ButtonDefaults.buttonColors(containerColor = io.embodit.mrirehearsal.ui.theme.MriColors.PrimaryFill, contentColor = Color.White),
     ) {
         ButtonLabel(label, icon)
     }
@@ -110,7 +110,7 @@ fun LabeledIconButton(icon: Int, label: String, onClick: () -> Unit, modifier: M
 
 @Composable
 fun LinkText(label: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
-    Link(onClick = onClick, modifier = modifier.heightIn(min = MIN_TOUCH)) { Txt(label) }
+    Link(onClick = onClick, modifier = modifier.heightIn(min = MIN_TOUCH)) { Txt(label, color = io.embodit.mrirehearsal.ui.theme.MriColors.LinkOnGlass) }
 }
 
 /** A status line: a small coloured dot carries the colour, the text stays labelPrimary (D13: coloured text failed on light glass). */

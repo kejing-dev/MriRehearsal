@@ -136,6 +136,7 @@
     <string name="tour_demo">这是呼叫：技师马上就会回应。</string>
     <string name="tour_tap_hint">小提示：点房间里亮起的物体，直接跳到那一站。</string>
     <string name="tour_of">%1$d / %2$d</string>
+    <string name="tour_go_l1">接着练 30 秒</string>
     <string name="prev">上一个</string>
     <string name="next_fmt">下一个 (%1$d/%2$d)</string>
 
