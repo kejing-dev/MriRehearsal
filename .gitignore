@@ -18,3 +18,4 @@
 .kotlin/
 # Emulator harness runtime state
 tools/harness/.state/
+__pycache__/
