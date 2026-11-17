@@ -19,3 +19,4 @@
 # Emulator harness runtime state
 tools/harness/.state/
 __pycache__/
+*.stackdump
