@@ -46,8 +46,8 @@ import kotlin.math.sin
 /**
  * Ids of the Stage's two small attachment panels (declared once in MriScreen, with fixed sizes). Every page, card and
  * button of the app is in the main system window (v0.1.1); the Stage keeps only what belongs to the 3D scene (template
- * native-window-move §3.6 / §6): the in-bore readout fixed on the bore (the window is behind the gantry while the head
- * is in the bore) and the "open panel" chip / "look straight ahead" hint while the window is closed or waiting.
+ * native-window-move §3.6 / §6): the in-bore readout fixed on the bore (in the bore the user faces the bore, the window is
+ * 80° to the side or above the face) and the "open panel" chip / "look straight ahead" hint while the window is closed or waiting.
  */
 object PanelIds {
     const val CAPTION = "caption"

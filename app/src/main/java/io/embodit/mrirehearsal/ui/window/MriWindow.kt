@@ -278,7 +278,7 @@ private fun TourPage(state: UiState, vm: MriViewModel) {
     }
 }
 
-/** S04–S07 and S10: the run, the same lines as the in-bore readout (the window is behind the gantry once in the bore). */
+/** S04–S07 and S10: the run, the same lines as the in-bore readout (in the bore the user faces the bore and reads those). */
 @Composable
 private fun RunPage(state: UiState, vm: MriViewModel) {
     Page(spread = true) {
@@ -524,7 +524,7 @@ private fun SettingsPage(state: UiState, vm: MriViewModel) {
         SettingRow(str(R.string.volume)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(BUTTON_GAP)) {
                 VolumeSlider(s.volume) { v -> vm.updateSettings { it.copy(volume = v) } }
-                Txt(str(R.string.volume_pct, VolumeSteps.percent(s.volume)), style = PicoTheme.typography.labelLarge, color = PicoTheme.colorScheme.labelPrimary, modifier = Modifier.width(56.dp))
+                Txt(str(R.string.volume_pct, VolumeSteps.percent(s.volume)), style = PicoTheme.typography.labelLarge, color = PicoTheme.colorScheme.labelPrimary, modifier = Modifier.width(52.dp))
                 MuteButton(s.muted, onClick = { vm.toggleMute() }, height = MIN_TOUCH)
             }
         }
@@ -548,7 +548,8 @@ private fun bestLine(state: UiState): String {
 private fun SettingRow(label: String, control: @Composable () -> Unit) {
     Row(modifier = Modifier.fillMaxWidth().heightIn(min = MIN_TOUCH), verticalAlignment = Alignment.CenterVertically) {
         // fixed label width: a SegmentControl takes all the width it is offered and pushed the label out (emulator S12)
-        Txt(label, style = PicoTheme.typography.bodyLarge, color = PicoTheme.colorScheme.labelPrimary, modifier = Modifier.width(150.dp))
+        // 130 dp: the volume row needs the room for "Sound on" / 取消静音 (OVERFLOW window/Sound on at 150, emulator sweep)
+        Txt(label, style = PicoTheme.typography.bodyLarge, color = PicoTheme.colorScheme.labelPrimary, modifier = Modifier.width(130.dp))
         Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterEnd) { control() }
     }
 }
@@ -564,7 +565,7 @@ private fun SwitchRow(label: String, checked: Boolean, onChange: (Boolean) -> Un
 }
 
 /**
- * Volume (B20): three steps (20 / 60 / 100 %), 48 dp tall, 220 dp wide. The SpatialUI Slider keeps the first
+ * Volume (B20): three steps (40 / 80 / 100 %), 48 dp tall, 200 dp wide. The SpatialUI Slider keeps the first
  * onValueChange it is given (spatial-ui-skills #41), so the callback goes through rememberUpdatedState; the value is a
  * local Float that snaps on every move and again on release, so a tap or a small drag lands on a step (VolumeSteps).
  */
@@ -577,7 +578,7 @@ private fun VolumeSlider(value: Float, onSet: (Float) -> Unit) {
     if (!dragging.value && VolumeSteps.snap(local.floatValue) != VolumeSteps.snap(value)) local.floatValue = value
     Slider(
         value = local.floatValue,
-        modifier = Modifier.width(220.dp).height(48.dp),
+        modifier = Modifier.width(200.dp).height(48.dp),
         onValueChange = { v ->
             dragging.value = true
             local.floatValue = v

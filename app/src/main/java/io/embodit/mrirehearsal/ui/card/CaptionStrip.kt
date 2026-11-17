@@ -46,8 +46,8 @@ import kotlinx.coroutines.delay
 
 /**
  * The in-bore readout (420 × 108 dp; scale 0.5 on the bore's roof lying, 1.0 on the bore's rim sitting). It is a reading
- * fixed on the scanner, not a panel: the main window carries the same lines, but in Full Space the gantry hides the
- * window while the head is in the bore (native-window-move §4 / §3.6: readings on the 3D body stay on the body). Top
+ * fixed on the scanner, not a panel: the main window carries the same lines, but in the bore the user faces the bore
+ * and the window is 80° to the side / above the face (native-window-move §3.6: readings on the 3D body stay on it). Top
  * row: sequence and progress, the stillness ring, mute with its label (D15). Bottom row: the technologist's caption at
  * 24 dp, one line; a caption too long for one line is two parts shown 3 s each.
  */

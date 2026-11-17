@@ -74,7 +74,9 @@ posture judge, the level gate and the placement origin (`apps/mri-rehearsal/buil
   after a close is swallowed, native-window-move §3.5). The Stage chip "Open panel" shows while the window is closed
   (its ×) or minimised; a minimised window is restored where it was.
 - The in-bore readout (`CaptionStrip`, 420 × 108 dp) stays a reading fixed on the bore (template §3.6 / §6): in Full
-  Space the gantry hides the window while the head is in the bore. The window's scan page shows the same lines.
+  Space the window is where the user looked when it opened, 80° from the bore (sitting) or above the face (lying), so
+  in the bore the user looks at the readout, not the window (on the emulator the window draws over the bore wall, it is
+  not depth-hidden; spatial-ui-skills #64). The window's scan page shows the same lines.
 - Quit (Settings → Quit app → Quit): release the scene and the sound, close the window container, close the Stage,
   `finishAndRemoveTask`, `exitProcess` 400 ms later (`ui/window/MainWindow.exitApp`).
 
@@ -160,7 +162,7 @@ Within tolerance; see the design package for the original wording. v0.1.1 change
 
 1. v0.1.1: every 2D page (main card S00–S02 / S11, settings S12, about S13, the tour tag S03, the pause card S09) is a
    page of one system window with a native TabBar; the tour's leader line is gone (the scene does not know where the
-   user dragged the window). The in-bore readout stays fixed on the bore (the window is behind the gantry in the bore).
+   user dragged the window). The in-bore readout stays fixed on the bore (in the bore the user faces the bore, not the window).
 2. v0.1.1: sitting, the gantry stands 80° to the right of the window's direction (not straight ahead): the window opens
    where the user looks and only this keeps its outline ≥ 10° from the gantry. Turn right to face the bore.
 3. v0.1.1: a call slides the world all the way back to park (s = 0) at 0.45 m/s (≈ 4.5 s) instead of s − 1.0 (R2-1):

@@ -13,7 +13,7 @@ yaw() {
 }
 powershell -NoProfile -File "$HERE/harness/uia_cam.ps1" set camera_rotation_button on >/dev/null
 for i in 1 2 3 4 5 6 7 8 9 10; do
-  y=$(yaw); err=$(awk -v t="$target" -v y="$y" 'BEGIN { print t - y }')
+  y=$(yaw); err=$(awk -v t="$target" -v y="$y" 'BEGIN { e = t - y; while (e > 180) e -= 360; while (e <= -180) e += 360; print e }')
   echo "yaw=$y err=$err"
   awk -v e="$err" 'BEGIN { exit !(e < 1.0 && e > -1.0) }' && exit 0
   px=$(awk -v e="$err" 'BEGIN { p = e / 0.032; if (p > 600) p = 600; if (p < -600) p = -600; printf "%d", p }')
