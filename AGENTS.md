@@ -190,6 +190,15 @@ Within tolerance; see the design package for the original wording. v0.1.1 change
 
 ## Emulator notes
 
+v0.1.1 round (2026-11-17, emulator-5554, Pico_Emulator_6_1_fresh, HD): every qaCapture state in zh / en
+(`tools/shots_v011.sh all en-|zh-`), real-pointer walk of the main loop, q2-1 / q1-1 / q1-2, quit + recents, cold
+start 3 x 60 s (0 ANR), OVERFLOW sweep (`tools/overflow_sweep.sh`), whitespace (`tools/whitespace.py --box
+819,822,1800,1741`), contrast (`tools/contrast.py`); results in `spatial-app-factory/apps/mri-rehearsal/build/ui-audit.md`
+section 10.12. Real taps: `tools/harness/emu.sh click X Y` (2160-wide coordinates; `tools/buttons.py SHOT` finds the
+window's buttons); the camera turns with `tools/turn.sh YAW` (reads the head back with `dump`). Wait 5 s after a tap
+before a console screenshot: at the idle 2-4 fps the window's frame lags one step. Pressing HOME closes the Stage but
+leaves the window in the shared space (known, ui-audit 10.14).
+
 Emulator quirks seen here: the first HMD sample is (0,0,0) + identity (dropped); textured quads sample v from the
 bottom; the controller provider reports DEVICE_NOT_SUPPORTED (the trigger hold can only be tested on the headset); the
 idle emulator renders at 2–4 fps (`tools/harness/emu.sh fast on` for real pointer input). Tools: `tools/m.sh`
