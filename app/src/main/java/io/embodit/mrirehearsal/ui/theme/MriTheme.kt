@@ -49,8 +49,12 @@ object MriColors {
      */
     val PrimaryFill = Color(0xFF1F5AA6)
 
-    /** Link text on the light window glass (#D7D6D5 measured): 5.6:1; the Link's own blue measured 2.74:1. */
-    val LinkOnGlass = Color(0xFF1D4F91)
+    /**
+     * Link text on the light window glass (#D5D4D3 measured): 8.3:1 as set; the Link draws it lighter and thin strokes
+     * anti-alias (#1D4F91 measured 4.42:1 on "Clear scores"), so it is darker than a body text blue would need. The
+     * Link's own blue measured 2.74:1.
+     */
+    val LinkOnGlass = Color(0xFF123462)
 
     // ui (status colours; the 16 colour-scheme roles stay PicoTheme's)
     val Accent = Color(0xFF2F6DB5)
