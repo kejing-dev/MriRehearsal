@@ -1,6 +1,6 @@
 # 磁共振预习 MRI Rehearsal
 
-> **预发布 v0.1.0 · 模拟器 QA 通过，真机未验证。** Pre-release v0.1.0: passed emulator QA, not yet verified on a headset.
+> **v0.1.1 开发中（原生系统窗口 + 页签），待 QA；最新预发布是 v0.1.0。** v0.1.1 in development (native system window + TabBar), awaiting QA; the latest pre-release is v0.1.0.
 >
 > 这是一个预习练习，**不是医疗器械**；扫描当天请以医院和技师的指引为准。
 > This is a rehearsal, **not a medical device**; on the day, follow your hospital's instructions.
@@ -11,12 +11,12 @@
 
 做磁共振之前，先在家练一遍。躺在自己床上（或坐着），一台 1:1 的磁共振机把你滑进 60 cm 的孔洞，扫描噪声响起，头显量你的头动了几毫米、几度。先认识扫描室，再按 30 秒 → 2 分钟 → 5 分钟三关，练到一动不动。
 
-- **认识扫描室**：名签指着机架、孔洞、头线圈、呼叫球和技师窗，一站一站讲清楚
+- **认识扫描室**：机架、孔洞、头线圈、呼叫球和技师窗依次亮起，面板一站一站讲清楚
 - **三关练静止**：入舱滑入 → 定位倒计时 → 几段扫描序列（中间有间歇，字幕提前说「下一段更响 / 差不多 / 轻一点」）
-- **随时呼叫技师**：捏住 0.4 秒（或手柄扳机按住），扫描停、台子滑出，暂停卡给「继续扫描 / 出舱结束」
+- **随时呼叫技师**：捏住 0.4 秒（或手柄扳机按住），扫描停、台子滑出，面板给「继续扫描 / 重来这一关 / 出舱结束」
 - **结果**：静止分 + 等级 + 时间线标出动的那几下，给下一关或再来一次
-- **设置**：中英文、孔径 60 / 70 cm、动了提醒、头线圈、跳过导览、音量，全部可调；静音一眼可见并记住
-- 卡片可拖动，「重新对位」把机架和卡片叫回面前
+- **设置**：首屏「叫回面前」「退出应用」；中英文、孔径 60 / 70 cm、动了提醒、头线圈、跳过进出动画、三档音量；静音一眼可见并记住；「怎么操作」页写清手势和手柄的做法
+- 所有界面在一个系统窗口里（原生页签：扫描 / 怎么操作 / 关于 / 设置），用窗口下方的系统控件拖动、关闭；扫描时孔洞里另有一条读数
 - 不联网、不需要账号、不申请权限；扫描噪声是程序合成的
 
 ### 截图
@@ -45,18 +45,18 @@ pico-cli app launch io.embodit.mrirehearsal
 
 ### 还没在真机上验证的
 
-手柄射线拖动和扳机长按呼叫（模拟器不支持手柄）、真人躺姿下的追踪和舒适度、扫描噪声的听感和音量、表冠降沉浸度、真机抖动下 4 mm / 1.5° 阈值会不会误报。
+手柄射线拖动系统窗口和扳机长按呼叫（模拟器不支持手柄）、仰卧时窗口开在脸上方、真人躺姿下的追踪和舒适度、扫描噪声的听感和音量、表冠降沉浸度、真机抖动下 4 mm / 1.5° 阈值会不会误报。
 
 ## English
 
 Rehearse an MRI scan at home. Lying on your own bed (or sitting), a life-size MRI scanner slides you into its 60 cm bore, the scan noise plays, and the headset measures how many millimetres and degrees your head moves. Take the room tour first, then practise stillness over three levels: 30 s → 2 min → 5 min.
 
-- **Room tour**: tags point at the gantry, the bore, the head coil, the call ball and the control-room window
+- **Room tour**: the gantry, the bore, the head coil, the call ball and the control-room window light up one by one while the panel explains them
 - **Three stillness levels**: slide in → positioning countdown → scan sequences, with gaps where a caption warns "next one is louder / about the same / quieter"
-- **Call the technologist any time**: pinch and hold 0.4 s (or hold the controller trigger); the scan stops and the table slides out, with Resume / Finish on the pause card
+- **Call the technologist any time**: pinch and hold 0.4 s (or hold the controller trigger); the scan stops and the table slides out, with Resume / Restart this level / Finish on the panel
 - **Results**: stillness score, grade and a timeline marking each movement, then next level or retry
-- **Settings**: Chinese / English, 60 / 70 cm bore, movement hints, head coil, skip tour, volume; mute is always visible and remembered
-- Cards can be dragged; Recentre brings the scanner and cards back in front of you
+- **Settings**: Bring back in front and Quit app first; Chinese / English, 60 / 70 cm bore, movement hints, head coil, skip the slide animation, three-step volume; mute is always visible and remembered; a How to page for hands and controller
+- Every page is in one system window (native tabs: Scan / How to / About / Settings), moved and closed with the system controls under it; in the bore a readout stays on the bore
 - Offline, no account, no permissions; the scan noise is synthesised
 
 Screenshots come from PICO Emulator 6.1 (High Definition graphics), jumped to each state by the debug broadcast — **not a recording of real hand input**. The demo video (`video-01.mp4` on the release, 51 s, silent) is also debug-driven and shows the round-1 build — **not real hand input**.
@@ -77,7 +77,7 @@ Requires PICO OS 6 (Spatial SDK 6.1.9); Full Space (Progressive, immersion 100 /
 
 ### Not yet verified on a headset
 
-Controller-ray drag and trigger-hold call (the emulator has no controller), tracking and comfort when really lying down, how the scan noise sounds and its volume, lowering immersion with the crown, and whether the 4 mm / 1.5° thresholds false-alarm with real head jitter.
+Dragging the system window with the controller ray and the trigger-hold call (the emulator has no controller), the window opening above the face when lying, tracking and comfort when really lying down, how the scan noise sounds and its volume, lowering immersion with the crown, and whether the 4 mm / 1.5° thresholds false-alarm with real head jitter.
 
 ## Build
 

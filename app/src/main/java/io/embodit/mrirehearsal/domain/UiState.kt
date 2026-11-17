@@ -1,6 +1,10 @@
 package io.embodit.mrirehearsal.domain
 
-/** The base states of the design package (`states[]`); S08, S14, S15, S16 are modifiers carried in [UiState]. */
+/**
+ * The base states of the design package (`states[]`); S08, S14, S15, S16 are modifiers carried in [UiState]. S12
+ * (settings) and S13 (about) are pages of the main window since v0.1.1 ([WindowPage]): the TabBar opens them at any
+ * time, the scan carries on underneath.
+ */
 enum class Screen {
     S00,
     S01,
@@ -12,9 +16,7 @@ enum class Screen {
     S07,
     S09,
     S10,
-    S11,
-    S12,
-    S13;
+    S11;
 
     /** Inside the scanner run: the call ball works, tracking loss pauses (S04–S07; S03 has its own call handling). */
     val inRun: Boolean
@@ -27,6 +29,41 @@ enum class Screen {
     companion object {
         fun fromTag(tag: String?): Screen? = entries.firstOrNull { it.name.equals(tag, ignoreCase = true) }
     }
+}
+
+/** The main window's TabBar pages (four: the scan, how to, about, settings). */
+enum class WindowPage(val id: String) {
+    SCAN("scan"),
+    HOWTO("howto"),
+    ABOUT("about"),
+    SETTINGS("settings");
+
+    companion object {
+        fun fromId(id: String?): WindowPage? = entries.firstOrNull { it.id.equals(id, ignoreCase = true) || it.name.equals(id, ignoreCase = true) }
+    }
+}
+
+/**
+ * Volume slider (B20): three steps, snapped; mute is its own button next to it. Default 0.8: the scan noise's sounding
+ * RMS is then about -19.5 dBFS with peaks at -2.7 dBFS (qa/loudness-v0.1.1.wav, tools/loudness.py).
+ */
+object VolumeSteps {
+    val LEVELS = floatArrayOf(0.4f, 0.8f, 1.0f)
+    const val DEFAULT = 0.8f
+    const val MIN = 0.4f
+    const val MAX = 1.0f
+
+    /** Slider steps between the ends (Slider(steps = 1) = three positions). */
+    const val SLIDER_STEPS = 1
+
+    /** The nearest of the three levels to [v] (a tap anywhere on the track or a small drag lands on one). */
+    fun snap(v: Float): Float {
+        var best = LEVELS[0]
+        for (l in LEVELS) if (kotlin.math.abs(l - v) < kotlin.math.abs(best - v)) best = l
+        return best
+    }
+
+    fun percent(v: Float): Int = (snap(v) * 100f).toInt()
 }
 
 enum class AppLanguage {
@@ -51,7 +88,7 @@ data class Settings(
     val motionHint: Boolean = true,
     val headCoil: Boolean = true,
     val skipSlide: Boolean = false,
-    val volume: Float = 0.6f,
+    val volume: Float = VolumeSteps.DEFAULT,
     val muted: Boolean = false,
 ) {
     val boreRadius: Float
@@ -75,6 +112,9 @@ sealed interface Caption {
     data object Done : Caption
 
     data object Called : Caption
+
+    /** S09 once the world is out: the choice is on the main window. */
+    data object SeePanel : Caption
 
     data object Lost : Caption
 
@@ -120,9 +160,9 @@ data class UiState(
     val result: RunResult? = null,
     val best: Map<Level, Int> = emptyMap(),
     val settings: Settings = Settings(),
-    /** Where S12 returns to (S01 or S02), also after a detour through S13 (R2-8). */
-    val settingsFrom: Screen = Screen.S02,
-    /** Bumped whenever the main card must be placed again in front of the head (each appearance, T10). */
+    /** The main window's page (TabBar). */
+    val page: WindowPage = WindowPage.SCAN,
+    /** Bumped whenever the Stage chip must be placed again in front of the head. */
     val cardEpoch: Int = 0,
     /** Bumped when the room must be laid out again from the current head pose (T1, T10). */
     val frameEpoch: Int = 0,

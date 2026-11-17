@@ -1,5 +1,6 @@
 package io.embodit.mrirehearsal.scene
 
+import io.embodit.mrirehearsal.domain.Gantry
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Paint
@@ -394,6 +395,57 @@ internal object Meshes {
         return b.build(name)
     }
 
+    /**
+     * A slab with a rounded footprint (B12: props are rounded meshes, not cubes): [w] along X, [h] along Y, [d] along
+     * Z, the four vertical edges rounded with radius [r] (smooth normals, [arcSteps] per corner), flat top and bottom.
+     * Built at its real size: entities using it are not scaled (the table base only along Y, which keeps the rounding).
+     */
+    fun roundedSlab(w: Float, h: Float, d: Float, r: Float, name: String, arcSteps: Int = 8): MeshResource {
+        val b = MeshBuilder()
+        val hw = w / 2
+        val hd = d / 2
+        val hh = h / 2
+        val rr = minOf(r, hw, hd)
+        val centres = listOf(V3(hw - rr, 0f, hd - rr), V3(-hw + rr, 0f, hd - rr), V3(-hw + rr, 0f, -hd + rr), V3(hw - rr, 0f, -hd + rr))
+        val ring = ArrayList<Pair<V3, V3>>()
+        for (k in 0 until 4) {
+            for (i in 0..arcSteps) {
+                val a = Math.toRadians(k * 90.0 + 90.0 * i / arcSteps)
+                val n = V3(cos(a).toFloat(), 0f, sin(a).toFloat())
+                ring += (centres[k] + n * rr) to n
+            }
+        }
+        val up = V3(0f, 1f, 0f)
+        val down = V3(0f, -1f, 0f)
+        for (i in ring.indices) {
+            val (p0, n0) = ring[i]
+            val (p1, n1) = ring[(i + 1) % ring.size]
+            if ((p1 - p0).length < 1e-6f) continue
+            b.quad(V3(p0.x, -hh, p0.z), V3(p1.x, -hh, p1.z), V3(p1.x, hh, p1.z), V3(p0.x, hh, p0.z), n0, n1, n1, n0)
+            b.quad(V3(0f, hh, 0f), V3(p0.x, hh, p0.z), V3(p1.x, hh, p1.z), V3(0f, hh, 0f), up)
+            b.quad(V3(0f, -hh, 0f), V3(p1.x, -hh, p1.z), V3(p0.x, -hh, p0.z), V3(0f, -hh, 0f), down)
+        }
+        return b.build(name)
+    }
+
+    /** A cylinder of radius [r] and length [len] along local Z, [segments] smooth sides, both ends capped (hose, grille). */
+    fun cylinderZ(r: Float, len: Float, name: String, segments: Int = 16): MeshResource {
+        val b = MeshBuilder()
+        val hz = len / 2
+        val front = V3(0f, 0f, 1f)
+        val back = V3(0f, 0f, -1f)
+        for (i in 0 until segments) {
+            val a0 = (2 * PI * i / segments).toFloat()
+            val a1 = (2 * PI * (i + 1) / segments).toFloat()
+            val d0 = V3(cos(a0), sin(a0), 0f)
+            val d1 = V3(cos(a1), sin(a1), 0f)
+            b.quad(d0 * r + V3(0f, 0f, -hz), d1 * r + V3(0f, 0f, -hz), d1 * r + V3(0f, 0f, hz), d0 * r + V3(0f, 0f, hz), d0, d1, d1, d0)
+            b.quad(V3(0f, 0f, hz), d0 * r + V3(0f, 0f, hz), d1 * r + V3(0f, 0f, hz), V3(0f, 0f, hz), front)
+            b.quad(V3(0f, 0f, -hz), d1 * r + V3(0f, 0f, -hz), d0 * r + V3(0f, 0f, -hz), V3(0f, 0f, -hz), back)
+        }
+        return b.build(name)
+    }
+
     /** UV sphere of radius 1 (the call ball). */
     fun sphere(name: String, rings: Int = 12, sectors: Int = 18): MeshResource {
         val b = MeshBuilder()
@@ -414,9 +466,9 @@ internal object Meshes {
         return b.build(name)
     }
 
-    const val GANTRY_W = 2.10f
-    const val GANTRY_H = 2.30f
-    const val GANTRY_D = 1.60f
+    const val GANTRY_W = Gantry.W
+    const val GANTRY_H = Gantry.H
+    const val GANTRY_D = Gantry.D
     const val GANTRY_CORNER = 0.35f
     const val CHAMFER = 0.05f
     const val STRIP_W = 0.04f

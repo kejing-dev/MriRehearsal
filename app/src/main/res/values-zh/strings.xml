@@ -11,7 +11,7 @@
     <string name="link_sit">我要坐着练</string>
     <string name="link_lie">我躺好了</string>
     <string name="enter">进扫描室</string>
-    <string name="settings">设置</string>
+    <string name="ready_next">接下来：先认识扫描室，再练 30 秒、2 分钟、5 分钟。</string>
     <string name="mute">静音</string>
     <string name="unmute">取消静音</string>
     <string name="room_title">扫描室</string>
@@ -24,16 +24,34 @@
     <string name="tour_stops">%1$d 个点</string>
     <string name="best_none">—</string>
     <string name="best_fmt">%1$s %2$d</string>
-    <string name="drag_hint">拖下方横条可挪动卡片</string>
-    <string name="recenter">重新对位</string>
     <string name="lost_short">追踪丢了，稍等</string>
+
+    <string name="tab_scan">扫描</string>
+    <string name="tab_howto">怎么操作</string>
+    <string name="tab_about">关于</string>
+    <string name="tab_settings">设置</string>
+
+    <string name="recall">叫回面前</string>
+    <string name="quit_app">退出应用</string>
+    <string name="quit_confirm">退出磁共振预习？</string>
+    <string name="quit_keep">最好成绩会保留。</string>
+    <string name="cancel">取消</string>
+    <string name="quit">退出</string>
 
     <string name="called">已呼叫技师</string>
     <string name="called_body">我们听到了，先停下来。</string>
+    <string name="called_sliding">正在把你送出来…</string>
     <string name="resume">继续扫描</string>
     <string name="finish">出舱结束</string>
+    <string name="restart_level">重来这一关</string>
+    <string name="restart_confirm">重来这一关？</string>
+    <string name="restart_body">这一关的进度会清掉，从第一段重新扫。</string>
+    <string name="restart_yes">重来</string>
+    <string name="finish_confirm">出舱结束？</string>
+    <string name="finish_body">这一关不计成绩。</string>
+    <string name="finish_yes">结束</string>
     <string name="done_of">已完成 %1$s / %2$s</string>
-    <string name="lost_pause">追踪丢了，卡片先留在这里。</string>
+    <string name="lost_pause">追踪丢了，扫描先停着。</string>
 
     <string name="result">扫完了</string>
     <string-array name="grades">
@@ -50,6 +68,12 @@
     <string name="back_room">回扫描室</string>
     <string name="legend">琥珀 = 微动 · 红点 = 大动 · 灰 = 间歇</string>
 
+    <string name="motion_still">很稳</string>
+    <string name="motion_minor">微动</string>
+    <string name="motion_major">大动</string>
+    <string name="call_hint">想停：按住扳机，或捏住不放。</string>
+    <string name="run_sliding">台子在动</string>
+
     <string name="settings_title">设置</string>
     <string name="language">语言</string>
     <string name="lang_zh">中文</string>
@@ -61,15 +85,14 @@
     <string name="coil">头线圈</string>
     <string name="skip">跳过进出动画</string>
     <string name="volume">音量</string>
-    <string name="about">关于</string>
+    <string name="volume_pct">%1$d %%</string>
     <string name="clear_scores">清除成绩</string>
-    <string name="back">返回</string>
 
     <string name="about_title">关于</string>
     <string name="version_fmt">版本 %1$s</string>
     <string name="about_ack">致谢 Little Journey 与 Michigan Medicine：它们的磁共振检查预习体验启发了本应用。</string>
-    <string name="about_audio">扫描声：为本应用合成，不是录音，可自由使用。</string>
-    <string name="about_oss">字体：Noto Sans、Noto Sans SC（SIL 开源字体许可 1.1）。</string>
+    <string name="about_audio">扫描声：按各序列的脉冲节奏为本应用用程序生成，不是录音，可自由使用。</string>
+    <string name="about_oss">字体：Noto Sans、Noto Sans SC（SIL 开源字体许可 1.1）。图标：Material Icons / Material Symbols（Apache 2.0）。</string>
 
     <string name="cap_table">台子要动了，这是正常的。</string>
     <string name="cap_settle_3">保持这个姿势，3…</string>
@@ -84,7 +107,8 @@
     <string name="cap_gap_same">做得很好，放松，正常呼吸。|下一段差不多响。</string>
     <string name="cap_last">最后一段了。</string>
     <string name="cap_done">扫完了，台子出来了。</string>
-    <string name="cap_called">我们听到了，先停下来，|把你送出来一点。</string>
+    <string name="cap_called">我们听到了，先停下来，|把你送出来。</string>
+    <string name="cap_see_panel">继续还是结束：|在面板上选。</string>
     <string name="cap_lost">追踪丢了，别担心，扫描暂停</string>
     <string name="progress_fmt">%1$s · %2$s / %3$s</string>
     <string name="seq_loc">定位像</string>
@@ -110,6 +134,34 @@
     </string-array>
     <string name="tour_behind">（在你身后，转身看）</string>
     <string name="tour_demo">这是呼叫：技师马上就会回应。</string>
+    <string name="tour_tap_hint">小提示：点房间里亮起的物体，直接跳到那一站。</string>
+    <string name="tour_of">%1$d / %2$d</string>
     <string name="prev">上一个</string>
     <string name="next_fmt">下一个 (%1$d/%2$d)</string>
+
+    <string name="chip_open">打开面板</string>
+    <string name="chip_level">平视前方，|面板就出来。</string>
+    <string name="chip_level_lie">平视前方，或躺平看天花板，|面板就出来。</string>
+
+    <string name="how_to_title">怎么操作</string>
+    <string name="how_to_hands_line">手势：%1$s</string>
+    <string name="how_to_ctrl_line">手柄：%1$s</string>
+    <string name="how_to_press">点按钮</string>
+    <string name="how_to_press_hands">看着它，捏一下。</string>
+    <string name="how_to_press_ctrl">射线指着它，按扳机。</string>
+    <string name="how_to_move">挪动或关掉这个面板</string>
+    <string name="how_to_move_hands">看面板下方的小圆点，捏住中间的圆钮拖动；× 关掉。</string>
+    <string name="how_to_move_ctrl">射线指面板下方的小圆点，在中间的圆钮上按住扳机拖动。</string>
+    <string name="how_to_call">停下扫描（呼叫球）</string>
+    <string name="how_to_call_hands">在房间里捏住不放半秒。</string>
+    <string name="how_to_call_ctrl">随便指哪里，按住扳机半秒。</string>
+    <string name="how_to_still">在孔洞里保持不动</string>
+    <string name="how_to_still_hands">躺好，头靠稳；圆环保持白色。</string>
+    <string name="how_to_still_ctrl">一样；琥珀 = 微动，红 = 大动。</string>
+    <string name="how_to_tour">认识扫描室（导览）</string>
+    <string name="how_to_tour_hands">看着亮起的物体捏一下，跳到那一站。</string>
+    <string name="how_to_tour_ctrl">射线指着它，按扳机。</string>
+    <string name="how_to_recall">面板找不到了？</string>
+    <string name="how_to_recall_hands">捏一下面前的「打开面板」，或 设置 ▸ 叫回面前。</string>
+    <string name="how_to_recall_ctrl">射线指「打开面板」，按扳机。</string>
 </resources>

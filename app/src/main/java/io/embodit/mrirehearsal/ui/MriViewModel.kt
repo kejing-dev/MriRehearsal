@@ -29,6 +29,9 @@ import io.embodit.mrirehearsal.domain.StillReading
 import io.embodit.mrirehearsal.domain.TourStop
 import io.embodit.mrirehearsal.domain.UiState
 import io.embodit.mrirehearsal.domain.V3
+import io.embodit.mrirehearsal.domain.VolumeSteps
+import io.embodit.mrirehearsal.domain.WindowLayout
+import io.embodit.mrirehearsal.domain.WindowPage
 import io.embodit.mrirehearsal.domain.lastAfterGap
 import io.embodit.mrirehearsal.domain.nextLoudness
 import io.embodit.mrirehearsal.platform.MriGraph
@@ -85,6 +88,17 @@ class MriViewModel(app: Application) : AndroidViewModel(app) {
     /** The current world offset, reported by the scene. */
     @Volatile var worldOffset = 0f
 
+    /**
+     * The head pose when the main window last opened (WindowLayout.place): sitting, the room is laid out around this
+     * direction (the gantry 80 degrees to its right), so re-laying it later (T1) keeps the gantry clear of the window.
+     */
+    @Volatile var windowRotation: Q4? = null
+        private set
+
+    /** Where that window opened (WindowLayout.expectedWindow), for the scene's line-of-sight guard (QA q2-1). */
+    @Volatile var windowRect: WindowLayout.WindowRect? = null
+        private set
+
     private var settleLeft = 0f
     private var resumeClock: RunClock? = null
     private var calledFrom: Screen? = null
@@ -111,9 +125,13 @@ class MriViewModel(app: Application) : AndroidViewModel(app) {
         main.postDelayed({ if (_state.value.screen == Screen.S00) onBuilt() }, LOADING_TIMEOUT_MS)
     }
 
-    override fun onCleared() {
+    override fun onCleared() = release()
+
+    /** Exit (D26): the ticker's callbacks and both audio players go; the process ends right after. */
+    fun release() {
         main.removeCallbacksAndMessages(null)
-        audio.release()
+        runCatching { audio.release() }
+        MriLog.i("VM released")
     }
 
     // ------------------------------------------------------------------------------------- the ticker
@@ -253,8 +271,9 @@ class MriViewModel(app: Application) : AndroidViewModel(app) {
         if (s.lost) lostFrom = Screen.S09
         audio.stopAll()
         audio.call()
-        _state.update { it.copy(screen = Screen.S09, pauseCardReady = false, caption = Caption.Called, motion = Motion.STILL) }
-        command(SlideCommand.Mode.CALL, 0f, Slide.FAST)
+        // the pause page is on the main window: it comes to the front of the window's TabBar pages
+        _state.update { it.copy(screen = Screen.S09, pauseCardReady = false, caption = Caption.Called, motion = Motion.STILL, page = WindowPage.SCAN) }
+        command(SlideCommand.Mode.CALL, 0f, Slide.CALL_SPEED)
         MriLog.i("STATE -> S09 called from=$calledFrom resume=${resumeClock?.segment}")
     }
 
@@ -302,7 +321,7 @@ class MriViewModel(app: Application) : AndroidViewModel(app) {
                     _state.update { it.copy(screen = Screen.S05, caption = Caption.Settle(3)) }
                     MriLog.i("STATE -> S05 settle")
                 }
-                Screen.S09 -> _state.update { it.copy(pauseCardReady = true, caption = Caption.None, cardEpoch = it.cardEpoch + 1) }
+                Screen.S09 -> _state.update { it.copy(pauseCardReady = true, caption = Caption.SeePanel, cardEpoch = it.cardEpoch + 1) }
                 Screen.S10 -> {
                     if (s > 0.001f) return@post
                     audio.motor(false)
@@ -329,6 +348,14 @@ class MriViewModel(app: Application) : AndroidViewModel(app) {
         }
         _state.update { it.copy(screen = Screen.S11, result = result, best = best, caption = Caption.None, cardEpoch = it.cardEpoch + 1) }
         MriLog.i("STATE -> S11 level=${st.level} score=$score events=${t.events} minorSec=${"%.1f".format(t.minorSec)}")
+    }
+
+    /** S09 [Restart this level] (after its confirmation): the run starts again from its first sequence. */
+    fun restartLevel() {
+        val s = _state.value
+        if (s.screen != Screen.S09 || !s.level.isScan) return
+        MriLog.i("RESTART level=${s.level} (confirmed)")
+        selectLevel(s.level)
     }
 
     /** S11 buttons. */
@@ -444,7 +471,16 @@ class MriViewModel(app: Application) : AndroidViewModel(app) {
         MriLog.i("POSTURE manual=$p")
     }
 
-    /** T10 "Re-centre": posture and frame again from the current head pose. */
+    /**
+     * [Bring back in front] (T10; settings first screen and the scan page): the window closes and opens again in front
+     * of the head (it cannot be moved by code); when it opens, [onWindowOpened] lays the room out around it again.
+     */
+    fun recall(why: String) {
+        MriLog.i("RECALL why=$why screen=${_state.value.screen}")
+        MriShared.recall(why)
+    }
+
+    /** `recenter` (debug) and the room part of a recall: posture and frame again from the current head pose. */
     fun recenter() {
         val s = _state.value
         if (!s.postureManual) {
@@ -454,19 +490,30 @@ class MriViewModel(app: Application) : AndroidViewModel(app) {
         MriLog.i("RECENTER posture=${_state.value.posture}")
     }
 
-    fun openSettings() {
-        val from = _state.value.screen
-        if (from != Screen.S01 && from != Screen.S02) return
-        _state.update { it.copy(screen = Screen.S12, settingsFrom = from) }
+    /**
+     * The main window has just been opened (launch, the chip, a recall): remember the head pose it opened for, and,
+     * outside a run (where the room is not moving around the user), lay the room out around it again
+     * (WindowLayout.place: the gantry clear of the window by at least 10 degrees). Inside a run the room stays.
+     */
+    fun onWindowOpened(why: String) {
+        val pose = head.last
+        windowRotation = pose?.rotation
+        // the gate opened it either level (upright, yaw only) or lying looking up (above the face)
+        windowRect = pose?.let { p ->
+            val lying = kotlin.math.abs(WindowLayout.pitchDeg(p.rotation)) > 10f && WindowLayout.supineOk(p.rotation)
+            WindowLayout.expectedWindow(p.position, p.rotation, if (lying) Posture.LIE else Posture.SIT)
+        }
+        val s = _state.value
+        val relay = relaysOnOpen(s.screen)
+        if (relay) recenter()
+        MriLog.i("WINDOW opened why=$why screen=${s.screen} relaid=$relay pitch=${pose?.let { "%.1f".format(WindowLayout.pitchDeg(it.rotation)) }}")
     }
 
-    fun closeSettings() {
-        _state.update { it.copy(screen = it.settingsFrom) }
+    /** A TabBar page (S12 settings, S13 about are pages; the scan goes on underneath). */
+    fun selectPage(page: WindowPage) {
+        if (_state.value.page != page) _state.update { it.copy(page = page) }
+        MriLog.i("PAGE ${page.id}")
     }
-
-    fun openAbout() = _state.update { it.copy(screen = Screen.S13) }
-
-    fun closeAbout() = _state.update { it.copy(screen = Screen.S12) }
 
     // ------------------------------------------------------------------------------------- tour
 
@@ -495,7 +542,7 @@ class MriViewModel(app: Application) : AndroidViewModel(app) {
     // ------------------------------------------------------------------------------------- settings
 
     fun updateSettings(change: (Settings) -> Settings) {
-        val next = change(_state.value.settings)
+        val next = change(_state.value.settings).let { it.copy(volume = VolumeSteps.snap(it.volume)) }
         _state.update { it.copy(settings = next) }
         saveSettings(next)
         applyVolume()
@@ -532,7 +579,7 @@ class MriViewModel(app: Application) : AndroidViewModel(app) {
             backgroundInRun = false
             call()
             // the world is already out when the user comes back (design T13)
-            command(SlideCommand.Mode.CALL, 0f, Slide.FAST, snap = true)
+            command(SlideCommand.Mode.CALL, 0f, Slide.CALL_SPEED, snap = true)
         }
     }
 
@@ -554,7 +601,8 @@ class MriViewModel(app: Application) : AndroidViewModel(app) {
             motionHint = prefs.getBoolean("hint", true),
             headCoil = prefs.getBoolean("coil", true),
             skipSlide = prefs.getBoolean("skip", false),
-            volume = prefs.getFloat("volume", 0.6f),
+            // "volume2": v0.1.1 has three steps (0.4 / 0.8 / 1.0); the v0.1.0 free value is not carried over
+            volume = VolumeSteps.snap(prefs.getFloat("volume2", VolumeSteps.DEFAULT)),
             muted = prefs.getBoolean("muted", false),
         )
     }
@@ -567,7 +615,7 @@ class MriViewModel(app: Application) : AndroidViewModel(app) {
             .putBoolean("hint", s.motionHint)
             .putBoolean("coil", s.headCoil)
             .putBoolean("skip", s.skipSlide)
-            .putFloat("volume", s.volume)
+            .putFloat("volume2", s.volume)
             .putBoolean("muted", s.muted)
             .apply()
     }
@@ -658,16 +706,8 @@ class MriViewModel(app: Application) : AndroidViewModel(app) {
                 if (run) main.postDelayed({ command(SlideCommand.Mode.TO, 0f, Slide.SLOW) }, 300)
             }
             Screen.S11 -> debugResult(args)
-            Screen.S12 -> {
-                if (_state.value.screen != Screen.S01 && _state.value.screen != Screen.S02) backToRoom()
-                openSettings()
-            }
-            Screen.S13 -> {
-                if (_state.value.screen != Screen.S01 && _state.value.screen != Screen.S02) backToRoom()
-                openSettings()
-                openAbout()
-            }
         }
+        _state.update { it.copy(page = WindowPage.SCAN) }
         MriLog.i("DEBUG goto $screen -> ${_state.value.screen} frozen=${_state.value.frozen}")
     }
 
@@ -717,6 +757,25 @@ class MriViewModel(app: Application) : AndroidViewModel(app) {
 
     fun debugTestTexture(on: Boolean) = _state.update { it.copy(testTexture = on) }
 
+    /**
+     * `reset` (build lesson: the debug bus clears the stage between shots): sound off, timeline unfrozen, tracking back,
+     * the scan page, the world parked, S01 or S02 (whichever the user had reached). Head offsets: the receiver.
+     */
+    fun debugReset() {
+        audio.stopAll()
+        lostFrom = null
+        calledFrom = null
+        resumeClock = null
+        engine.reset()
+        speed = 1f
+        val back = if (_state.value.screen == Screen.S00 || _state.value.screen == Screen.S01) Screen.S01 else Screen.S02
+        _state.update {
+            it.copy(screen = back, lost = false, frozen = false, tourDemoUntilMs = 0L, abandoning = false, pauseCardReady = false, caption = Caption.None, motion = Motion.STILL, result = null, page = WindowPage.SCAN, testTexture = false, cardEpoch = it.cardEpoch + 1)
+        }
+        command(SlideCommand.Mode.TO, 0f, Slide.FAST, snap = true)
+        MriLog.i("DEBUG reset -> $back")
+    }
+
     /** `state`: one log line with the judge's numbers. */
     fun debugStateLine(): String {
         val s = _state.value
@@ -732,12 +791,15 @@ class MriViewModel(app: Application) : AndroidViewModel(app) {
         override fun <T : ViewModel> create(modelClass: Class<T>): T = MriViewModel(app) as T
     }
 
-    private companion object {
-        const val TICK_MS = 50L
-        const val SETTLE_SEC = 3f
-        const val START_CAPTION_SEC = 6f
-        const val LOST_TO_CALL_MS = 10_000L
-        const val DEMO_MS = 3000L
-        const val LOADING_TIMEOUT_MS = 10_000L
+    companion object {
+        /** Opening the window re-lays the room only where the room is not moving around the user (no run, no slide). */
+        fun relaysOnOpen(screen: Screen): Boolean = screen == Screen.S00 || screen == Screen.S01 || screen == Screen.S02 || screen == Screen.S03 || screen == Screen.S11
+
+        private const val TICK_MS = 50L
+        private const val SETTLE_SEC = 3f
+        private const val START_CAPTION_SEC = 6f
+        private const val LOST_TO_CALL_MS = 10_000L
+        private const val DEMO_MS = 3000L
+        private const val LOADING_TIMEOUT_MS = 10_000L
     }
 }

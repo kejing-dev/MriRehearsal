@@ -198,9 +198,18 @@ class DesignNumbersTest {
 
     @Test
     fun u11_worldOffsetPaths() {
+        // v0.1.1: a call slides all the way back to park (the pause page is on the window; only at park does the gantry
+        // clear the window's outline, WindowLayoutTest), at CALL_SPEED: 1.8 m in about 4.5 s
         assertEquals(0f, Slide.callTarget(0.45f), 1e-6f)
-        assertEquals(0.5f, Slide.callTarget(1.5f), 1e-5f)
-        assertEquals(0.8f, Slide.callTarget(1.8f), 1e-5f)
+        assertEquals(0f, Slide.callTarget(1.5f), 1e-5f)
+        assertEquals(0f, Slide.callTarget(1.8f), 1e-5f)
+        var c = Slide(s = Slide.MAX).toward(Slide.callTarget(Slide.MAX), Slide.CALL_SPEED)
+        var tc = 0f
+        while (c.moving && tc < 20f) {
+            c = c.step(1 / 60f)
+            tc += 1 / 60f
+        }
+        assertTrue("call slide-out ${tc}s", tc in 4f..5.5f)
         assertEquals(1.8f, Slide.RESUME_TARGET, 0f)
         assertEquals(0f, Slide.ABANDON_TARGET, 0f)
         // the three paths end where they should from any start
@@ -229,8 +238,8 @@ class DesignNumbersTest {
         }
         assertEquals(12.5f, t, 0.3f) // 12 s at 0.15 m/s plus half of the 0.5 s ease at each end
         assertEquals(0.86f, at6, 0.05f) // QA's "S04 at 6 s": the front face nearly at the top of the head
-        // the call from the isocentre: 1.0 m at 0.25 m/s, 4 s plus the ease
-        var c = Slide(s = 1.8f).toward(Slide.callTarget(1.8f), Slide.FAST)
+        // the call from the isocentre: back to park, 1.8 m at 0.45 m/s, 4 s plus the ease (v0.1.1)
+        var c = Slide(s = 1.8f).toward(Slide.callTarget(1.8f), Slide.CALL_SPEED)
         var tc = 0f
         while (c.moving && tc < 60f) {
             c = c.step(1 / 60f)

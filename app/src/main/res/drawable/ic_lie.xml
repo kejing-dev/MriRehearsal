@@ -1,9 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Material Icons "accessibility_new" (Apache-2.0), filled, 24 dp, turned 90 degrees: a person lying down (taste D23: standard icon, not a hand-drawn path). -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
     android:height="24dp"
     android:viewportWidth="24"
     android:viewportHeight="24">
-    <path android:fillColor="#FFFFFFFF" android:pathData="M3,10.5a2.5,2.5 0 1,0 5,0a2.5,2.5 0 1,0 -5,0z"/>
-    <path android:fillColor="#FFFFFFFF" android:pathData="M9,11h11a2,2 0 0,1 2,2v1h-13z M2,15h20v2h-20z"/>
+    <group
+        android:pivotX="12"
+        android:pivotY="12"
+        android:rotation="-90">
+        <path
+            android:fillColor="#FFFFFFFF"
+            android:pathData="M20.5,6c-2.61,0.7 -5.67,1 -8.5,1S6.11,6.7 3.5,6L3,8c1.86,0.5 4,0.83 6,1v13h2v-6h2v6h2V9c2,-0.17 4.14,-0.5 6,-1L20.5,6zM12,6c1.1,0 2,-0.9 2,-2s-0.9,-2 -2,-2s-2,0.9 -2,2S10.9,6 12,6z" />
+    </group>
 </vector>

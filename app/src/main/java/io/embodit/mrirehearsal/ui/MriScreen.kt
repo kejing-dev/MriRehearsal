@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
@@ -19,50 +20,69 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.pico.spatial.ui.foundation.content.SpatialView
 import com.pico.spatial.ui.foundation.dsl.registerSystem
 import com.pico.spatial.ui.foundation.dsl.unregisterSystem
 import com.pico.spatial.ui.foundation.gesture.TargetEntity
-import com.pico.spatial.ui.foundation.gesture.detectSpatialDragGesture
 import com.pico.spatial.ui.foundation.gesture.detectTapGestures
+import com.pico.spatial.ui.platform.containers.LocalSpatialNavigator
 import io.embodit.mrirehearsal.debug.DebugHost
+import io.embodit.mrirehearsal.domain.Posture
 import io.embodit.mrirehearsal.platform.MriGraph
 import io.embodit.mrirehearsal.platform.MriLog
 import io.embodit.mrirehearsal.scene.MriFrameSystem
 import io.embodit.mrirehearsal.scene.MriScene
 import io.embodit.mrirehearsal.scene.PanelIds
 import io.embodit.mrirehearsal.ui.card.CaptionStrip
-import io.embodit.mrirehearsal.ui.card.MainCard
-import io.embodit.mrirehearsal.ui.card.SettingsCard
-import io.embodit.mrirehearsal.ui.card.TourTag
+import io.embodit.mrirehearsal.ui.card.OpenPanelChip
 import io.embodit.mrirehearsal.ui.theme.AppLocale
 import kotlinx.coroutines.withTimeoutOrNull
 
-/** Sizes of the pre-built panels, dp (design package `panels[]`). */
+/** Sizes of the Stage's two small panels, dp. */
 object PanelSizes {
-    val CARD = IntSize(480, 400)
-    val CARD_TALL = IntSize(480, 440)
     val CAPTION = IntSize(420, 96)
-    val TAG = IntSize(440, 160)
+    val CHIP = IntSize(360, 120)
 }
 
 /**
- * The Stage content: one full-size SpatialView carrying the scan room and the panel pool. Every attachment panel is
- * declared here once with a fixed size, whether it is showing or not; the scene parents each panel under its holder
- * and shows or hides the holder (Spatial Ruler's panel pool).
+ * The Stage (Full Space, Progressive): the scan room in one SpatialView, the in-bore readout and the "open panel"
+ * chip. Every page of the app is in the main system window (`MriWindow`), which this screen opens — only with an
+ * accepted head pose (LevelGate, D9) — closes for [Bring back in front], and restores. Moving and closing the window
+ * are the system's own controls; nothing here drags a panel (D21).
  *
- * Input: the system pointer (controller ray + trigger / gaze + pinch) on the room's and the tour's colliders. A short
- * press on a tour point jumps there (T4); a press held 0.4 s anywhere on the room is the call ball (T5, pinch
- * path). The controller trigger held 0.4 s works without pointing at anything (scene, ControllerInput).
+ * Input in the room: the system pointer (controller ray + trigger / gaze + pinch) on the room's and the tour's colliders.
+ * A short press on a tour point jumps there (T4); a press held 0.4 s on a collider is the call ball (T5, pinch path).
+ * The controller trigger held 0.4 s works without pointing at anything (scene, ControllerInput).
  */
 @Composable
 fun MriScreen() {
     val context = LocalContext.current
     val application = context.applicationContext as Application
-    val vm: MriViewModel = viewModel(factory = MriViewModel.Factory(application))
+    val vm = remember(application) { MriShared.viewModel(application) }
     val state by vm.state.collectAsStateWithLifecycle()
     val scene = remember(vm) { MriScene(vm, MriGraph.head, MriGraph.controller) }
+    val navigator = LocalSpatialNavigator.current
+
+    // the window's open / close / restore go through the navigator held here; every open waits for the head (MriShared)
+    DisposableEffect(navigator) {
+        MriShared.opener = { navigator.openWindowContainer(MriShared.WINDOW_ID, MriShared.WINDOW_TAG) }
+        MriShared.closer = { navigator.closeWindowContainer(MriShared.WINDOW_ID, MriShared.WINDOW_TAG) }
+        MriShared.restorer = { navigator.restoreWindowContainer(MriShared.WINDOW_ID, MriShared.WINDOW_TAG) }
+        MriShared.onOpened = { why -> vm.onWindowOpened(why) }
+        MriShared.stageNavigator = navigator
+        // D26 / D44 exit (ui/window/MainWindow.exitApp): the scene's trackers and entities go first
+        MriShared.exiter = { scene.detach() }
+        onDispose {
+            MriShared.cancelOpen()
+            MriShared.opener = null
+            MriShared.closer = null
+            MriShared.restorer = null
+            MriShared.onOpened = null
+            MriShared.exiter = null
+            MriShared.stageNavigator = null
+        }
+    }
+    LaunchedEffect(Unit) { MriShared.askOpen("stage") }
 
     DisposableEffect(scene) {
         registerSystem<MriFrameSystem>()
@@ -105,6 +125,7 @@ fun MriScreen() {
             modifier =
                 Modifier
                     .fillMaxSize()
+                    // gate:allow board-input the room's colliders are not a board: tap = jump to a tour stop, hold = call (no drag)
                     .pointerInput(Unit) {
                         detectTapGestures(
                             context = context,
@@ -123,29 +144,13 @@ fun MriScreen() {
                                 }
                             },
                         )
-                    }
-                    // D21: drag the main card by its grab bar (a separate recognizer, as dose-distance does)
-                    .pointerInput(Unit) {
-                        detectSpatialDragGesture(
-                            context = context,
-                            targetedToEntity = TargetEntity.any { entity -> scene.isGrab(entity) },
-                            onDragStart = { start, value -> scene.onCardDrag("start", start, value) },
-                            onDragEnd = { value -> scene.onCardDrag("end", null, value) },
-                            onDragCancel = { value -> scene.onCardDrag("cancel", null, value) },
-                        ) { value -> scene.onCardDrag("move", null, value) }
                     },
             attachments = {
-                AttachmentPanel(PanelIds.CARD) {
-                    Gate(scene, PanelIds.CARD, PanelSizes.CARD) { MainCard(state, vm) }
-                }
-                AttachmentPanel(PanelIds.CARD_TALL) {
-                    Gate(scene, PanelIds.CARD_TALL, PanelSizes.CARD_TALL) { SettingsCard(state, vm) }
-                }
                 AttachmentPanel(PanelIds.CAPTION) {
                     Gate(scene, PanelIds.CAPTION, PanelSizes.CAPTION) { CaptionStrip(state, vm) }
                 }
-                AttachmentPanel(PanelIds.TAG) {
-                    Gate(scene, PanelIds.TAG, PanelSizes.TAG) { TourTag(state, vm) }
+                AttachmentPanel(PanelIds.CHIP) {
+                    Gate(scene, PanelIds.CHIP, PanelSizes.CHIP) { OpenPanelChip(lying = state.posture == Posture.LIE) }
                 }
             },
             update = { _, attachments -> scene.bind(attachments) },

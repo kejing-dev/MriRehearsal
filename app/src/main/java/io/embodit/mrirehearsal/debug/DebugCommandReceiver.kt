@@ -9,9 +9,11 @@ import io.embodit.mrirehearsal.domain.Level
 import io.embodit.mrirehearsal.domain.Posture
 import io.embodit.mrirehearsal.domain.Screen
 import io.embodit.mrirehearsal.domain.V3
+import io.embodit.mrirehearsal.domain.WindowPage
 import io.embodit.mrirehearsal.platform.MriGraph
 import io.embodit.mrirehearsal.platform.MriLog
 import io.embodit.mrirehearsal.scene.MriScene
+import io.embodit.mrirehearsal.ui.MriShared
 import io.embodit.mrirehearsal.ui.MriViewModel
 import java.util.Locale
 
@@ -58,8 +60,28 @@ object DebugHost {
         try {
             when (name) {
                 "goto" -> {
-                    val screen = Screen.fromTag(word ?: args["s"]) ?: return MriLog.i("CMD goto needs S00..S13")
-                    vm.debugGoto(screen, args)
+                    val tag = word ?: args["s"]
+                    // S12 / S13 are pages of the main window since v0.1.1
+                    when {
+                        tag.equals("S12", true) -> vm.selectPage(WindowPage.SETTINGS)
+                        tag.equals("S13", true) -> vm.selectPage(WindowPage.ABOUT)
+                        else -> vm.debugGoto(Screen.fromTag(tag) ?: return MriLog.i("CMD goto needs S00..S13"), args)
+                    }
+                }
+                "page" -> WindowPage.fromId(word)?.let { vm.selectPage(it) } ?: MriLog.i("CMD page scan|howto|about|settings")
+                "window" ->
+                    when (word) {
+                        "open" -> MriShared.askOpen("debug")
+                        "close" -> MriShared.closer?.invoke()
+                        "recall" -> vm.recall("debug")
+                        else -> MriLog.i("CMD window open|close|recall  state=${MriShared.window} waiting=${MriShared.openWaiting} hint=${MriShared.levelHint}")
+                    }
+                "reset" -> {
+                    head.offset = V3.ZERO
+                    head.offsetDeg = 0f
+                    head.offsetPivot = false
+                    head.forceLost = false
+                    vm.debugReset()
                 }
                 "posture" -> (word ?: args["p"])?.let { p -> vm.debugPosture(if (p.equals("lie", true)) Posture.LIE else Posture.SIT) }
                 "best" -> vm.debugBest(args.mapNotNull { (k, v) -> Level.fromTag(k)?.let { l -> v.toIntOrNull()?.let { l to it.coerceIn(0, 100) } } }.toMap())
@@ -101,7 +123,6 @@ object DebugHost {
                 "testtex" -> vm.debugTestTexture(on(word ?: "1"))
                 "hits" -> scene.setRoomHits(on(word ?: "1"))
                 "guard" -> { scene.guardOn = on(word ?: "1"); MriLog.i("CMD guard=${scene.guardOn}") }
-                "dragcard" -> scene.debugMoveCard(rest.getOrNull(0)?.toFloatOrNull() ?: 0f, rest.getOrNull(1)?.toFloatOrNull() ?: 0f)
                 "state" -> MriLog.i(vm.debugStateLine())
                 "dump" -> MriLog.i(scene.dumpLine())
                 else -> MriLog.i("CMD unknown '$name'")

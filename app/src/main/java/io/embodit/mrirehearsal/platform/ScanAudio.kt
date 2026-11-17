@@ -111,6 +111,7 @@ class ScanAudio(context: Context) {
     }
 
     private companion object {
-        const val MOTOR_GAIN = 0.6f
+        /** The table motor as loud as the beds (v0.1.1: at 0.6 it pulled the sounding RMS under -20 dBFS). */
+        const val MOTOR_GAIN = 1.0f
     }
 }

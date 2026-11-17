@@ -4,52 +4,79 @@ A PICO OS 6 Spatial SDK app (Kotlin + ECS, BOM 6.1.9). Lying on your own bed (or
 slides you into its 60 cm bore, the scan noise plays, and the headset measures how far your head moves: a room tour,
 then 30 s, 2 min and 5 min scans scored for stillness. Fully offline, no permissions, Chinese / English in the app.
 
-- Package / applicationId: `io.embodit.mrirehearsal`, version 0.1.0
-- Container: the default Stage, **Progressive**, immersion 100 / 40 / 100 (`AndroidManifest.xml`); no WindowContainer
+- Package / applicationId: `io.embodit.mrirehearsal`, version 0.1.1 (versionCode 2)
+- Containers: the default Stage, **Progressive**, immersion 100 / 40 / 100 (`AndroidManifest.xml`) for the scan room,
+  plus **one Planar WindowContainer** `MriWindow` (640 × 620 dp) for every 2D page (v0.1.1, factory
+  `prompts/snippets/native-window-move.md`): native SpatialUI TabBar (Scan / How to / About / Settings), the system's
+  own move / close / minimise controls under the window. No self-made drag bar, no panel drag code.
 - Design package: `spatial-app-factory/apps/mri-rehearsal/design-package.json` (rev 3, archetype C, 17 states, 14 interactions)
-- Reference repo: `moon-phases` (Stage manifest, HeadTracker, panel pool, debug receiver, fonts, in-app language);
-  controller trigger from `dance-steps` / `bianzhong`; colliders + `InteractableComponent` from `dose-distance`
+- Reference repo: `moon-phases` (Stage manifest, HeadTracker, debug receiver, fonts, in-app language); controller
+  trigger from `dance-steps` / `bianzhong`; window template, LevelGate and recall from `too-much` / `pruning-class`
 
 ## Build
 
 ```bash
-JAVA_HOME="C:/Program Files/Android/Android Studio/jbr" ./gradlew.bat assembleDebug testDebugUnitTest --no-daemon
+JAVA_HOME="C:/Program Files/Android/Android Studio/jbr" ./gradlew.bat testDebugUnitTest assembleDebug --no-daemon
 ```
 
 Output: `app/build/outputs/apk/debug/app-debug.apk`. `gradle.properties` keeps the build JVM at 2 GB and the daemon
-off (several projects build on this machine at once). Unit tests: `app/src/test/.../DesignNumbersTest.kt` (design
-U1–U11, level totals 30 / 120 / 300 and sequence seconds 30 / 104 / 268, slide paths, panel orientation).
+off (several projects build on this machine at once). Release: `assembleRelease` gives an unsigned APK (no
+signingConfig, no keystore in the repo; the store signs it). Offline release builds: add
+`-x lintVitalAnalyzeRelease -x lintVitalReportRelease -x lintVitalRelease`.
 
-Regenerate assets (both scripts are standard-library Python + Pillow, no numpy):
+Unit tests (`app/src/test/...`): `DesignNumbersTest` (design U1–U11, level totals, slide paths incl. the v0.1.1 call
+back to park, panel orientation), `OcclusionTest` (q2-1 line-of-sight guard), `WindowLayoutTest` (one placement
+function for every window opening path, the window ≥ 10° from the gantry from either eye sitting / standing / lying,
+D9 upright window, the lying readout clear of the window, the level gate incl. the supine branch, volume steps).
 
-```bash
-python tools/make_icon.py ../spatial-app-factory/apps/mri-rehearsal/icon.png   # adaptive-icon vector + legacy PNG + 512 export
-python tools/make_audio.py                                                       # app/src/main/assets/audio/*.wav
-```
+Assets: `python tools/make_icon.py …` (adaptive icon), `python tools/make_audio.py` (scan noise, rendered),
+`python -I tools/loudness.py OUT.wav` (loudness evidence at the default volume 0.8, rendered).
 
 ## Layout of the code (`app/src/main/java/io/embodit/mrirehearsal`)
 
 ```
-Main.kt                DefaultStage { MriTheme { MriScreen() } }
+Main.kt                DefaultStage { MriScreen() } + WindowContainer("MriWindow", Planar) { MriWindow() }
 platform/              SpatialApplication, LaunchActivity, MriLog, MriGraph; HeadTracker (HMDTrackingProvider + debug offset),
                        ControllerInput (trigger held = call ball), ScanAudio (SoundPool beds + cues, MediaPlayer localiser)
-domain/                MathKit (V3, Q4, facing), Stillness (judge + score), Plan (sequences, levels, run clock),
-                       Slide (world offset s), Frame (posture judge, ScanFrame H0 / b), RunEngine (judge behind a lock), UiState
+domain/                MathKit, Stillness (judge + score), Plan (sequences, levels, run clock), Slide (world offset s),
+                       Frame (posture judge, ScanFrame), RunEngine, UiState (screens, WindowPage, VolumeSteps),
+                       LevelGate (open the window only level / lying looking up), WindowLayout (THE placement function:
+                       where the window opens, the room laid out around it, the ≥ 10° check), Occlusion (q2-1)
+ui/MriShared.kt        process-level: the ViewModel, the window's lifecycle, the gate, recall = close → ON_DESTROY → open
 ui/MriViewModel.kt     the state machine; 50 ms ticker drives the timeline; slide commands for the scene
-ui/MriScreen.kt        SpatialView + the four pre-built panels + the pointer gesture (tap a tour point / hold = call)
-ui/card/               MainCard (S00 S01 S02 S09 S11 S13), SettingsCard (S12), CaptionStrip, TourTag, Common
-scene/MriScene.kt      ECS: room, gantry (+ bore, strips, band), table, coil, call ball, window, tour shell + leader,
-                       panel holders; onFrame() every frame: slide, stillness sampling, panel placement
-scene/SceneKit.kt      SDK helpers, MeshBuilder, programmatic meshes (gantry body with rounded outline, bore with chamfers,
-                       light strips, front band, birdcage coil, sphere) and textures (ceiling sky, "F↑" test card)
+ui/MriScreen.kt        the Stage: SpatialView (room + the in-bore readout + the "open panel" chip), tap / hold gesture
+ui/window/             MainWindow (template: TabBar, exitApp), MriWindow (the four pages, settings, confirmations)
+ui/card/               CaptionStrip (the in-bore readout fixed on the bore), Chip, Common (Txt with OVERFLOW log, buttons)
+scene/MriScene.kt      ECS: room, gantry (+ bore, strips, band), table, coil, call ball, window, tour highlight,
+                       the two Stage panels; onFrame(): gate step, slide, stillness sampling, panel placement, hit guard
+scene/SceneKit.kt      SDK helpers, MeshBuilder, programmatic meshes (gantry with rounded outline, bore, strips, band,
+                       birdcage coil, sphere, rounded slabs for table / pillow / plinth, cylinders for hose / speaker)
 debug/                 DebugCommandReceiver + DebugHost (the QA broadcast)
 ```
 
 Conventions: Stage metres; the scan frame's local axes are +Z = b (towards the feet), +Y = up, +X = up × b. World
 offset s ∈ [0, 1.8]: 0 = gantry parked (front face 1.0 m beyond the top of the head), 1.8 = head at the isocentre.
 All 2D UI is SpatialUI inside PicoTheme; no Material / Material3 imports (factory gate). Nothing aims with the head's
-forward: selection is the system pointer (controller ray / gaze + pinch); the head pose is only the stillness input,
-the posture judge and the placement origin.
+forward: selection is the system pointer (controller ray / gaze + pinch); the head pose is the stillness input, the
+posture judge, the level gate and the placement origin (`apps/mri-rehearsal/build/headpose-audit.md`).
+
+### Window and room (v0.1.1)
+
+- The window opens on the line of sight about 0.82 m away (system; the app cannot place it). Every open goes through
+  `MriShared.askOpen` → `LevelGate`: |pitch| ≤ 10° for 300 ms, or lying looking up (`WindowLayout.supineOk`); meanwhile
+  the Stage chip says "Look straight ahead — the panel opens" on the line of sight.
+- Sitting, the room is laid out around the window: the gantry stands 80° to the right of the direction the window
+  opened in (`WindowLayout.frameFor`), so the window's outline (+ TabBar above, system controls below) stays ≥ 10° clear
+  of it from both eyes. Lying, the window opens above the face and the gantry is beyond the top of the head.
+- Every window open outside a run (S00–S03, S11) re-lays the room around the new window (`MriViewModel.onWindowOpened`).
+  Inside a run the room stays; a call (S09) slides the world back to park, where the gantry clears the window again.
+- [Bring back in front] (Settings first screen, scan page S02): close → wait for ON_DESTROY → open (an open right
+  after a close is swallowed, native-window-move §3.5). The Stage chip "Open panel" shows while the window is closed
+  (its ×) or minimised; a minimised window is restored where it was.
+- The in-bore readout (`CaptionStrip`, 420 × 96 dp) stays a reading fixed on the bore (template §3.6 / §6): in Full
+  Space the gantry hides the window while the head is in the bore. The window's scan page shows the same lines.
+- Quit (Settings → Quit app → Quit): release the scene and the sound, close the window container, close the Stage,
+  `finishAndRemoveTask`, `exitProcess` 400 ms later (`ui/window/MainWindow.exitApp`).
 
 ## Debug broadcast (QA screenshots)
 
@@ -57,126 +84,115 @@ Debug builds only. One command per broadcast; log tag `MriRehearsal` answers eve
 
 ```bash
 adb -s <serial> shell am broadcast -a io.embodit.mrirehearsal.DEBUG -p io.embodit.mrirehearsal --es cmd "goto S06 seq=T1 t=42"
-adb -s <serial> shell am broadcast -a io.embodit.mrirehearsal.DEBUG -p io.embodit.mrirehearsal --es cmd "head dx=0.012"
-adb -s <serial> shell am broadcast -a io.embodit.mrirehearsal.DEBUG -p io.embodit.mrirehearsal --es cmd "state"
 ```
 
-`goto` freezes the timeline and the slide at the requested moment (lesson 12: QA can shoot it); add `run=1` to let it
-continue, or send `release` later. The stillness judge keeps sampling while frozen, so `head …` injections still
-change the ring.
+`goto` freezes the timeline and the slide at the requested moment; add `run=1` to let it continue, or send `release`
+later. Start every shot series with `reset` (clears timers, offsets, frozen / lost flags, the page; back to S01 / S02).
 
-| Command | What it does |
+| Command | Precondition | What it does |
+| --- | --- | --- |
+| `reset` | any | sound off, head offsets 0, not lost, unfrozen, scan page, world parked, back to S01 (from S00 / S01) or S02 |
+| `goto S00` / `goto S01` | any | loading / ready (posture judged again) |
+| `goto S02` | any | the scan room (world parked) |
+| `goto S03 tour=n` | any | tour stop n (1..5; 1..4 sitting, the table is skipped) |
+| `goto S04 t=6 [level=L1]` | any | sliding in, world offset as at second t of the 0.15 m/s slide (t=6 → s≈0.9, t=8 → s≈1.2) |
+| `goto S05 [count=2]` | any | settling countdown, head at the isocentre |
+| `goto S06 seq=T1 t=42 [level=L2]` | any | scanning that sequence at second t (seq LOC / T1 / T2 / EPI; T2 picks L3) |
+| `goto S07 next=louder\|quieter\|same` | any | the gap before a louder / quieter / same sequence |
+| `goto S09` | any | called from S06 (L2, T1 at 10 s): the world slides back to park (≈ 4.5 s), pause page on the window. `goto S09 from=S04 t=3`: called half-way in |
+| `goto S10 t=6` | any | sliding out, as at second 6 |
+| `goto S11 score=98 events=0 [level=L2]` (= `result …`) | any | result page with that score |
+| `goto S12` / `goto S13` (= `page settings` / `page about`) | any | the Settings / About page of the window (the scan state underneath is kept) |
+| `page scan\|howto\|about\|settings` | window open | switches the TabBar page (a real tab press does the same) |
+| `window open\|close\|recall` | Stage running | ask for an open (waits for a level head) / close (×) / [Bring back in front]; no word = log the window state |
+| `posture lie\|sit` | S01 (or any; then `recenter`) | posture override (as the manual links; `lie` on the emulator takes b from the camera's forward) |
+| `best L1=98 L2=84` | any | stored best scores |
+| `tour n` | any (goes to S03) | tour stop n |
+| `head dx=0.012 dy= dz= deg=2 pivot=1` / `head 0` | S06 for the judge | offset added to every head sample (metres, degrees about world up; `pivot=1` about the neck) |
+| `lost 1\|0` | S04–S10 | force tracking lost (S14) / restore |
+| `s 0.45` | in a run | snap the world offset |
+| `call` / `resume` / `finish` | S03–S07 / S09 / S09 | the call ball / pause page buttons (finish here skips the page's confirmation) |
+| `speed 10` | any | timeline and slides 10× faster (`reset` sets 1) |
+| `freeze 1\|0`, `release` | any | freeze / unfreeze timeline and slide |
+| `lang zh\|en`, `bore 60\|70`, `hint 0\|1`, `coil 0\|1`, `skip 0\|1`, `mute 0\|1`, `volume 0.8` | any | settings (volume snaps to 0.4 / 0.8 / 1.0) |
+| `captionoffset 0.13` | lying, S05–S07 | the in-bore readout's axial offset on the bore's roof (0.10–0.25) |
+| `recenter` | outside a run | posture and room frame again from the current head pose (no window change) |
+| `testtex 1\|0` | any | "F↑" test card beside the chip and on the ceiling light box (texture orientation, taste D10) |
+| `hits 0\|1`, `guard 0\|1` | any | room colliders off / on; QA control for the line-of-sight guard |
+| `state` | any | one log line: screen, segment, d (mm), θ (°), motion, events, minor seconds, score, s, posture |
+| `dump` | Stage running | head pose, frame, s, the Stage panels' positions |
+
+Log lines worth grepping: `WINDOW ask|open|opened|ON_*`, `LEVEL hint|ok`, `RECALL`, `TAB`, `PAGE`, `QUIT`, `EXIT`,
+`OVERFLOW <panel>/<text>` (a fixed-line text that does not fit; run every state in English), `COLORS` (theme roles,
+for the contrast table), `STATE ->`.
+
+### Screenshot list (design package `qaCapture`, v0.1.1)
+
+The emulator is the seated mode (S15) by default; `posture lie` forges lying (window ahead, gantry behind). Shots of
+the window: console screenshot after the window has opened (3–6 s after launch / recall); the system TabBar sits above
+the window, the system controls (dot / × / handle / −) under it. Start each series with `reset`.
+
+| State | Commands (in order) |
 | --- | --- |
-| `goto S00` … `goto S13` | jump to a base state (parameters below) |
-| `goto S03 tour=n` | tour stop n (1..5; 1..4 sitting, the table is skipped) |
-| `goto S04 t=6 [level=L1]` | sliding in, world offset as at second t of the 0.15 m/s slide (t=6 → s≈0.9, t=8 → s≈1.2, caption on the roof) |
-| `goto S05 [count=2]` | settling countdown, head at the isocentre |
-| `goto S06 seq=T1 t=42 [level=L2]` | scanning that sequence at second t (seq LOC / T1 / T2 / EPI; T2 picks L3) |
-| `goto S07 next=louder\|quieter\|same` | the gap before a louder / quieter / equally loud sequence (L3 gaps 1 / 7 / 3) |
-| `goto S09` | called from S06 (L2, T1 at 10 s): the world slides out 1.0 m, then the pause card. `goto S09 from=S04 t=3`: called half-way in, the world goes back to park |
-| `goto S10 t=6` | sliding out, as at second 6 |
-| `goto S11 score=98 events=0 [level=L2]` (= `result …`) | result card with that score (one amber span for the minor seconds the score implies, red dots for the events) |
-| `goto S12` / `goto S13` | settings / about (from S02) |
-| `posture lie\|sit` | posture override (as the manual links; `lie` on the emulator takes b from the camera's forward) |
-| `best L1=98 L2=84` | stored best scores |
-| `tour n` | tour stop n |
-| `head dx=0.012 dy= dz= deg=2 pivot=1` | offset added to every head sample (metres; deg turns about world up, `pivot=1` about the neck pivot 9 cm behind the HMD). `head 0` clears |
-| `lost 1\|0` | force tracking lost (S14) / restore |
-| `s 0.45` | snap the world offset (then `call` for U11) |
-| `call` / `resume` / `finish` | the call ball / pause card buttons |
-| `speed 10` | timeline and slides 10× faster |
-| `freeze 1\|0`, `release` | freeze / unfreeze timeline and slide |
-| `lang zh\|en`, `bore 60\|70`, `hint 0\|1`, `coil 0\|1`, `skip 0\|1`, `mute 0\|1`, `volume 0.6` | settings |
-| `captionoffset 0.13` | lying caption strip: axial offset on the bore's roof (0.10–0.25) |
-| `recenter` | T10 |
-| `testtex 1\|0` | "F↑" test card to the right of the main card and on the ceiling light box (texture orientation, taste D10) |
-| `dragcard 0.2 0.05` | move the main card as a drag would (metres along the view's right / up; D21) |
-| `hits 0\|1` | room colliders off / on (click tests) |
-| `guard 0\|1` | QA control: `0` puts the build-13 behaviour back (room colliders always in, no line-of-sight holes) |
-| `state` | one log line: screen, segment, d (mm), θ (°), motion, events, minor seconds, score, s, posture |
-| `dump` | head pose, frame, s, every panel holder's position |
-
-### Screenshot list (design package `qaCapture`)
-
-The emulator is the seated mode (S15) by default; `posture lie` forges lying.
-
-| State | Commands |
-| --- | --- |
-| S00 Loading | launch, capture within 0.3 s (may be skipped) |
-| S01 Ready | `goto S01`; then `posture sit` / `posture lie` (posture row and the room change) |
-| S02 Scan room | `goto S02`; `best L1=98` then again (row shows "稳 98") |
-| S03 Tour | `goto S03 tour=1` … `tour=5` (`posture lie` first for all five) |
-| S04 Sliding in | `goto S04 t=6` (front face nearly at the head); `goto S04 t=8` (caption already on the roof) |
-| S05 Settling | `goto S05` (countdown 2) |
-| S06 Scanning | `goto S06 seq=T1 t=42` (ring white); camera left 30° / right 30° / towards the feet 30° (D8) |
-| S08 Motion hint | in S06: `head dx=0.006` (amber), `head dx=0.012` (red); `hint 0` then the same (no change); `head 0` |
-| S07 Gap | `goto S07 next=louder`; `next=quieter`; `next=same` |
-| S09 Called | `goto S09` (pause card, strip hidden, head out of the bore); `goto S09 from=S04 t=3` (world back at park) |
+| default view | cold start, camera untouched, wait for `WINDOW ON_RESUME` + `SCENE build done`: window ahead, gantry's flank at the right |
+| S00 Loading | launch, capture within 2 s (may be skipped) |
+| S01 Ready | `reset`; then `posture lie` / `posture sit` |
+| S02 Scan room | `goto S02`; `best L1=98` then again |
+| S03 Tour | `goto S03 tour=1` … `tour=4` (sitting) / `posture lie` first for all five |
+| S04 Sliding in | `goto S04 t=6`; `goto S04 t=8` (look right at the bore: the readout) |
+| S05 Settling | `goto S05` |
+| S06 Scanning | `goto S06 seq=T1 t=42`; S08: `head dx=0.006` (amber), `head dx=0.012` (red), `head 0` |
+| S07 Gap | `goto S07 next=louder` / `quieter` / `same` |
+| S09 Called | `goto S09` (wait 5 s: pause page, readout says "choose on the panel"); then a real tap on [Restart this level] → the confirmation (= `build/newgame-confirm.png`) |
 | S10 Sliding out | `goto S10 t=6` |
 | S11 Result | `goto S11 score=98 events=0`; `score=84 events=1`; `score=60` |
-| S12 Settings | `goto S12`; `lang en` then again (S16); `bore 70` and compare the bore with `goto S06` |
+| S12 Settings | `goto S12` (first screen: [Bring back in front] [Quit app]); `lang en` then again |
 | S13 About | `goto S13` |
-| S14 Tracking lost | `goto S06 seq=T1 t=20` then `lost 1`; `goto S04 t=6 run=1` then `lost 1` (world stops half-way); `goto S09` then `lost 1`; `lost 0` recovers (S06 → S05); `lost 1` held 10 s → S09 |
-| S15 Seated | S02 / S05 / S06 in the default emulator pose |
-| S16 English | `lang en`: S02 / S06 / S11 |
-
-Numbers (U1–U11) against the judge: `goto S06 seq=T1 t=0`, then `head dx=0.004` / `0.006` / `0.010` / `0.012`,
-`head deg=1.5` / `2` / `2.5 pivot=1` / `4`, and `state` after each (d, θ, events, minor seconds, score).
+| How to | `page howto` (zh and en) |
+| S14 Tracking lost | `goto S06 seq=T1 t=20` then `lost 1`; `lost 0` |
+| S16 English | `lang en`, cold start: the four TabBar tabs read Scan / How to / About / Settings; S02 / S06 / S11 |
+| Chip | `window close` (wait 2 s): "Open panel" in front; tap it → the window comes back |
+| Quit | Settings → Quit app → Quit (real taps), then `adb shell dumpsys activity recents` must not list the package |
 
 ## Deviations (also in state.json `deviations[]`)
 
-All within tolerance; see the design package for the original wording.
+Within tolerance; see the design package for the original wording. v0.1.1 changes first.
 
-1. Scan noise is the synthesised fallback track (tools/make_audio.py); no freesound CC0 recording was fetched (N8:
-   downloads need the user's go-ahead, and the user was asleep). Listen-check still to do on the device.
-2. Call ball (N7): controller trigger held 0.4 s anywhere (ControllerActionListener); the pinch path is a pinch held
-   0.4 s with the system pointer on any room / gantry / tour collider (a pinch at nothing has no target). No
-   "double press" fallback needed unless the emulator shows the hold does not arrive.
-3. Tour hover highlight (N6): the system's `HoverEffectComponent` on the tour colliders; the app does not get hover
-   events of its own. The highlight shell is a 2 % larger translucent box (not a copy of the mesh); the head coil is
-   tinted instead of shelled (the user's head is inside it). The leader line is a thin box, not a cylinder.
-4. Room surfaces (walls, floor, ceiling) and the bore's inner wall are pre-shaded Unlit, not PBR: with one directional
-   light and no IBL in Full immersion, the bore's roof (what a lying user stares at) would be black. Gantry, table,
-   coil and ball stay PBR with a small emissive term.
-5. Caption strip: two rows inside its 96 dp (sequence / progress / ring / mute on top, the 24 dp caption below), so the
-   16-character Chinese line fits the 420 dp width; English captions longer than one line are two parts, 3 s each.
-   Before the front face passes the head (s < 1.0) it hangs 0.6 m up in view at scale 0.8 (design gives no scale).
-   Sitting, it stays on the far rim the whole time (always visible through the bore), no pre-position.
-6. Sitting: the call ball sits at the right hand at lap height (the design places it only for lying); the gantry gets
-   a 5 cm plinth so it stands on the floor 1.2 m below the eyes.
-7. Called from the tour (S03): "Resume" goes back to the tour, "Slide out & finish" to the scan room (the design's
-   resume path is for scans).
-8. The main card has two pre-built sizes (480 × 400 — inside the design range 300–440 — and settings 480 × 440); only one shows at a time, at the same place.
-9. S00 → S01 when the room is built, or after 10 s at the latest (the idle emulator builds one resource a second).
-10. Contrast (D13): the scan room is light, so the Stage glass is light too (about #969693 measured in other factory
-    apps). Caption text, grade, "tracking lost" and the tour's call demo are labelPrimary text; the status colours
-    (still / amber / red, steady / good / retry) only fill dots and the ring, each with a labelPrimary rim.
+1. v0.1.1: every 2D page (main card S00–S02 / S11, settings S12, about S13, the tour tag S03, the pause card S09) is a
+   page of one system window with a native TabBar; the tour's leader line is gone (the scene does not know where the
+   user dragged the window). The in-bore readout stays fixed on the bore (the window is behind the gantry in the bore).
+2. v0.1.1: sitting, the gantry stands 80° to the right of the window's direction (not straight ahead): the window opens
+   where the user looks and only this keeps its outline ≥ 10° from the gantry. Turn right to face the bore.
+3. v0.1.1: a call slides the world all the way back to park (s = 0) at 0.45 m/s (≈ 4.5 s) instead of s − 1.0 (R2-1):
+   only at park does the gantry clear the window that carries the pause page.
+4. v0.1.1: lying, the window may open above the face (LevelGate supine branch, design R1-1) — an explicit exception to
+   D9's "pitch 0", recorded in headpose-audit.md for the coordinator.
+5. v0.1.1: volume has three steps 40 / 80 / 100 % (default 80 %), the table motor at the beds' level: sounding RMS
+   −19.2 dBFS, peak −2.7 dBFS (rendered, `qa/loudness-v0.1.1.wav`).
+6. Scan noise is rendered by `tools/make_audio.py` (not a recording): no CC0 MRI recording on this PC; downloading one
+   from freesound needs the user's go-ahead (`build/sound-sources.md`).
+7. Call ball (N7): controller trigger held 0.4 s anywhere (ControllerActionListener); the pinch path is a pinch held
+   0.4 s on a room collider (in a run) or a tour object (S03).
+8. Tour hover highlight (N6): the system's hover on the tour colliders; the highlight shell is a 2 % larger translucent
+   box (an abstract marker); the head coil is tinted instead (the user's head is inside it).
+9. Room surfaces and the bore's inner wall are pre-shaded Unlit (one directional light, no IBL in Full immersion);
+   gantry, table, pillow, coil and ball are PBR with a small emissive term.
+10. Sitting: the call ball sits at the right hand at lap height; the gantry gets a 5 cm plinth.
+11. Called from the tour (S03): "Resume" goes back to the tour, "Slide out & finish" to the scan room.
+12. S00 → S01 when the room is built, or after 10 s at the latest (the idle emulator builds one resource a second).
+13. Contrast (D13): status colours (still / amber / red, steady / good / retry) only fill dots and the ring, each with a
+    labelPrimary rim; text stays labelPrimary / labelSecondary.
+14. Sitting readout on the far rim at 0.19 m up instead of 0.24 m (its corners reached into the bore wall).
+15. QA q2-1: no collider may lie on a line of sight through a shown panel or the window where it opened; room hit boxes
+    only in a run, tour boxes only in S03 (`domain/Occlusion`, `MriScene.updateHits`).
 
-11. Sitting caption strip on the far rim at 0.19 m up instead of 0.24 m: at scale 1.0 its top corners reached into
-    the 0.30 m bore wall (emulator shot).
-12. The tour leader line is not drawn when it would pass within 0.3 m of the eyes (the coil; sitting, the window
-    behind the user): it turned into a wedge across the view. Instead, a stop behind the head adds "(behind you —
-    turn round)" to the tag's text.
-13. Call-ball tour text mentions pinch-and-hold too (the design's copy has no tour texts; these are the app's own,
-    process only).
+## Emulator notes
 
-14. D21 (QA q1-2): the main card has a grab bar 2.5 cm under it; the system pointer drags it (pinch, or controller
-    ray + trigger), the card follows at its grab distance, faces the user, and stays where it is released; "Re-centre"
-    brings it back. The tour tag is 440 dp wide so the English button row fits (QA q1-1).
-
-15. QA q2-1: no collider may lie on a line of sight through a shown panel. Room hit boxes exist only where the
-    pinch-held call works (S03–S07, lost S10) and get a hole cut where a panel is in front of them (`domain/Occlusion`,
-    `MriScene.updateHits`); tour hit boxes only in S03, stowed when the tag is in front. Tests: `tools/tap_test.sh N X Y`
-    (real pinch taps, reads `muted` from shared_prefs after each).
-
-## Emulator round (2026-10-29, emulator-5560, HD)
-
-All `qaCapture` states shot (`tools/shots_all.sh`, `tools/shots_fix.sh`, D8 head turns), 30 panel cycles each way,
-cold start 3 × 60 s clean (`tools/cold_start.sh`), real pinch tap / pinch hold / pause-card tap, HOME → background →
-relaunch → S09. Results and the fixes they led to: `spatial-app-factory/apps/mri-rehearsal/build/ui-audit.md` §7.
 Emulator quirks seen here: the first HMD sample is (0,0,0) + identity (dropped); textured quads sample v from the
-bottom; the controller provider reports DEVICE_NOT_SUPPORTED (the trigger hold can only be tested on the headset).
-Tools: `tools/m.sh` (cmd / shot / log / install / launch), `tools/harness/emu.sh` (from juggle-coach: fast on, click,
-drag), `tools/harness/uia_cam.ps1` (camera reset). `hits 0|1` toggles the room colliders for click tests.
+bottom; the controller provider reports DEVICE_NOT_SUPPORTED (the trigger hold can only be tested on the headset); the
+idle emulator renders at 2–4 fps (`tools/harness/emu.sh fast on` for real pointer input). Tools: `tools/m.sh`
+(cmd / shot / log / install / launch), `tools/harness/emu.sh` (fast on, click, drag), `tools/harness/uia_cam.ps1`
+(camera reset), `tools/cold_start.sh` (3 × 60 s cold start, ANR scan).
 
-Still device-only: lying posture for real, trigger hold, audio by ear, crown immersion 40, tracking jitter.
+Still device-only: lying posture for real (the supine window), trigger hold, audio by ear, crown immersion 40,
+tracking jitter, dragging the window with a hand / the controller ray.

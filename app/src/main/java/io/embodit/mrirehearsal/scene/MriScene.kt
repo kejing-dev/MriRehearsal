@@ -9,7 +9,6 @@ import com.pico.spatial.core.ecs.Entity
 import com.pico.spatial.core.ecs.InteractableComponent
 import com.pico.spatial.core.ecs.ModelEntity
 import com.pico.spatial.core.ecs.TransformComponent
-import com.pico.spatial.core.ecs.ViewCoordinateSpace
 import com.pico.spatial.core.ecs.resource.BlendingMode
 import com.pico.spatial.core.ecs.resource.MeshResource
 import com.pico.spatial.core.ecs.resource.TextureResource
@@ -21,9 +20,6 @@ import com.pico.spatial.core.math.Color4
 import com.pico.spatial.core.math.Quat
 import com.pico.spatial.core.math.Vector3
 import com.pico.spatial.ui.foundation.content.SpatialViewAttachments
-import com.pico.spatial.ui.foundation.gesture.SpatialDragValue
-import com.pico.spatial.ui.geometry.Offset3D
-import io.embodit.mrirehearsal.domain.DragLine
 import io.embodit.mrirehearsal.domain.Occlusion
 import io.embodit.mrirehearsal.domain.Posture
 import io.embodit.mrirehearsal.domain.Q4
@@ -33,11 +29,13 @@ import io.embodit.mrirehearsal.domain.Slide
 import io.embodit.mrirehearsal.domain.TourStop
 import io.embodit.mrirehearsal.domain.UiState
 import io.embodit.mrirehearsal.domain.V3
+import io.embodit.mrirehearsal.domain.WindowLayout
 import io.embodit.mrirehearsal.domain.toRad
 import io.embodit.mrirehearsal.platform.ControllerInput
 import io.embodit.mrirehearsal.platform.HeadPose
 import io.embodit.mrirehearsal.platform.HeadTracker
 import io.embodit.mrirehearsal.platform.MriLog
+import io.embodit.mrirehearsal.ui.MriShared
 import io.embodit.mrirehearsal.ui.MriViewModel
 import io.embodit.mrirehearsal.ui.PanelSizes
 import io.embodit.mrirehearsal.ui.SlideCommand
@@ -45,13 +43,16 @@ import io.embodit.mrirehearsal.ui.theme.MriColors
 import kotlin.math.cos
 import kotlin.math.sin
 
-/** Ids of the pre-built attachment panels (declared once in MriScreen, with fixed sizes). */
+/**
+ * Ids of the Stage's two small attachment panels (declared once in MriScreen, with fixed sizes). Every page, card and
+ * button of the app is in the main system window (v0.1.1); the Stage keeps only what belongs to the 3D scene (template
+ * native-window-move §3.6 / §6): the in-bore readout fixed on the bore (the window is behind the gantry while the head
+ * is in the bore) and the "open panel" chip / "look straight ahead" hint while the window is closed or waiting.
+ */
 object PanelIds {
-    const val CARD = "card"
-    const val CARD_TALL = "cardTall"
     const val CAPTION = "caption"
-    const val TAG = "tag"
-    val ALL = listOf(CARD, CARD_TALL, CAPTION, TAG)
+    const val CHIP = "chip"
+    val ALL = listOf(CAPTION, CHIP)
 }
 
 /** The one per-frame system of the app (registered while the Stage screen is composed). */
@@ -119,7 +120,6 @@ class MriScene(private val vm: MriViewModel, private val head: HeadTracker, priv
     private var ball: ModelEntity? = null
     private var hose: ModelEntity? = null
     private var shell: ModelEntity? = null
-    private var leader: ModelEntity? = null
 
     /** Entities the system pointer can hit, with the tour stop they stand for (null: the room, for the call hold). */
     private val targets = HashMap<Long, TourStop?>()
@@ -188,10 +188,8 @@ class MriScene(private val vm: MriViewModel, private val head: HeadTracker, priv
 
     private fun sizeDp(id: String): Pair<Float, Float> =
         when (id) {
-            PanelIds.CARD -> PanelSizes.CARD
-            PanelIds.CARD_TALL -> PanelSizes.CARD_TALL
             PanelIds.CAPTION -> PanelSizes.CAPTION
-            else -> PanelSizes.TAG
+            else -> PanelSizes.CHIP
         }.let { it.width.toFloat() to it.height.toFloat() }
 
     private val slots = LinkedHashMap<String, Slot>()
@@ -213,32 +211,9 @@ class MriScene(private val vm: MriViewModel, private val head: HeadTracker, priv
     private var lastLost = false
     private var headReported = false
     private var cardEpoch = -1
-    private var cardPos: V3? = null
+    private var chipPos: V3? = null
+    private var chipShownLast = false
 
-    // --- D21: the main card's grab bar (system pointer drag: pinch or controller ray + trigger)
-    private var content: SpatialViewContent? = null
-    private var contentProbe: Entity? = null
-    private var grabBar: ModelEntity? = null
-    private var grabHit: Entity? = null
-    private var grabVisible = false
-
-    private class CardDrag(val press: V3) {
-        var dir: V3? = null
-        var depth = 0f
-        var distance = 0f
-        var totalPx = V3.ZERO
-        var hand = V3.ZERO
-        var prevHand = V3.ZERO
-        var begun = false
-        var moves = 0
-    }
-
-    @Volatile private var cardDrag: CardDrag? = null
-    private var cardScale = CARD_SCALE
-    private var cardVisibleLast = false
-    private var pauseCardPlaced = false
-    private var tagPos: V3? = null
-    private var tagShownLast = false
     private var lastStripWarm: Boolean? = null
     private var lastCoilLit: Boolean? = null
     private var lastHighlight: TourStop? = null
@@ -259,8 +234,6 @@ class MriScene(private val vm: MriViewModel, private val head: HeadTracker, priv
         val root = Entity()
         runCatching { root.setName("mriRoot") }
         content.addEntity(root)
-        this.content = content
-        contentProbe = Entity().also { runCatching { it.setName("contentProbe") }; content.addEntity(it) }
         // An entity added to the SpatialView is not at the Stage origin; move the root once so that its local space
         // equals Stage space (Spatial Ruler's finding, 0.256 m off in z).
         val offset = root.convertPositionFrom(Vector3.ZERO, null)
@@ -329,12 +302,6 @@ class MriScene(private val vm: MriViewModel, private val head: HeadTracker, priv
         gantryMeshes.clear()
         runCatching { root?.destroy(true) }
         root = null
-        runCatching { contentProbe?.destroy(true) }
-        contentProbe = null
-        content = null
-        grabBar = null
-        grabHit = null
-        cardDrag = null
         shared.close()
         MriLog.i("SCENE detached")
     }
@@ -438,30 +405,39 @@ class MriScene(private val vm: MriViewModel, private val head: HeadTracker, priv
             layoutPosture = null
         }
         queueBore()
-        meshWork += "gantryParts" to {
-            val g = gantryGroup!!
-            val cube = unitCube!!
-            ModelEntity(cube, pbr(shared, MriColors.Speaker, 0.6f)).also {
-                it.setLocal(position = V3(0f, Meshes.GANTRY_H / 2 - 0.14f, Meshes.GANTRY_D / 2 + 0.06f), scale = V3(0.12f, 0.12f, 0.12f))
-                g.addChild(it)
+        // B12: the props are rounded meshes at their real size (no scaled cubes): one resource per work item
+        meshWork += "speaker" to {
+            // the intercom speaker grille on the gantry's top front: a disc
+            ModelEntity(shared.keep(Meshes.cylinderZ(0.06f, 0.012f, "speaker")), pbr(shared, MriColors.Speaker, 0.6f)).also {
+                it.setLocal(position = V3(0f, Meshes.GANTRY_H / 2 - 0.14f, Meshes.GANTRY_D / 2 + 0.006f))
+                gantryGroup?.addChild(it)
             }
-            ModelEntity(cube, unlit(shared, MriColors.Brand)).also {
-                it.setLocal(position = V3(-0.72f, 0.86f, Meshes.GANTRY_D / 2 + 0.006f), scale = V3(0.22f, 0.07f, 0.01f))
-                g.addChild(it)
+        }
+        meshWork += "brandPlate" to {
+            // the maker's plate: a thin rounded plate on the front face (turned so its thickness is along Z)
+            ModelEntity(shared.keep(Meshes.roundedSlab(0.22f, 0.01f, 0.07f, 0.02f, "brandPlate")), unlit(shared, MriColors.Brand)).also {
+                it.setLocal(position = V3(-0.72f, 0.86f, Meshes.GANTRY_D / 2 + 0.006f), rotation = Q4.axisAngle(V3.RIGHT, 90f))
+                gantryGroup?.addChild(it)
             }
-            plinth = ModelEntity(cube, pbr(shared, MriColors.Gantry.shade(0.9f), 0.5f)).also {
-                it.setLocal(position = V3(0f, -Meshes.GANTRY_H / 2 - 0.025f, 0f), scale = V3(1.8f, 0.05f, 1.5f))
-                g.addChild(it)
+        }
+        meshWork += "plinth" to {
+            plinth = ModelEntity(shared.keep(Meshes.roundedSlab(1.8f, 0.05f, 1.5f, 0.25f, "plinth")), pbr(shared, MriColors.Gantry.shade(0.9f), 0.5f)).also {
+                it.setLocal(position = V3(0f, -Meshes.GANTRY_H / 2 - 0.025f, 0f))
+                gantryGroup?.addChild(it)
             }
             layoutPosture = null
         }
-        meshWork += "table" to {
-            val cube = unitCube!!
-            val ug = userGroup!!
-            val white = pbr(shared, MriColors.Table, 0.5f)
-            tableTop = ModelEntity(cube, white).also { ug.addChild(it) }
-            tableBase = ModelEntity(cube, pbr(shared, MriColors.Table.shade(0.85f), 0.6f)).also { ug.addChild(it) }
-            pillow = ModelEntity(cube, pbr(shared, MriColors.Pillow, 0.9f)).also { ug.addChild(it) }
+        meshWork += "tableTop" to {
+            tableTop = ModelEntity(shared.keep(Meshes.roundedSlab(0.55f, 0.08f, 2.10f, 0.08f, "tableTop")), pbr(shared, MriColors.Table, 0.5f)).also { userGroup?.addChild(it) }
+            layoutPosture = null
+        }
+        meshWork += "tableBase" to {
+            // unit height, scaled along Y to reach the floor (the rounding is in X-Z, so it survives the scale)
+            tableBase = ModelEntity(shared.keep(Meshes.roundedSlab(0.30f, 1f, 0.60f, 0.06f, "tableBase")), pbr(shared, MriColors.Table.shade(0.85f), 0.6f)).also { userGroup?.addChild(it) }
+            layoutPosture = null
+        }
+        meshWork += "pillow" to {
+            pillow = ModelEntity(shared.keep(Meshes.roundedSlab(0.30f, 0.06f, 0.25f, 0.1f, "pillow", arcSteps = 10)), pbr(shared, MriColors.Pillow, 0.9f)).also { userGroup?.addChild(it) }
             layoutPosture = null
         }
         meshWork += "coil" to {
@@ -473,7 +449,9 @@ class MriScene(private val vm: MriViewModel, private val head: HeadTracker, priv
         }
         meshWork += "ball" to {
             ball = ModelEntity(shared.keep(Meshes.sphere("ball")), pbr(shared, MriColors.CallBall, 0.85f)).also { userGroup?.addChild(it) }
-            hose = ModelEntity(unitCube!!, pbr(shared, MriColors.CallBall.shade(0.8f), 0.85f)).also { userGroup?.addChild(it) }
+        }
+        meshWork += "hose" to {
+            hose = ModelEntity(shared.keep(Meshes.cylinderZ(0.006f, 0.5f, "hose", segments = 12)), pbr(shared, MriColors.CallBall.shade(0.8f), 0.85f)).also { userGroup?.addChild(it) }
             layoutPosture = null
         }
         meshWork += "window" to {
@@ -485,18 +463,8 @@ class MriScene(private val vm: MriViewModel, private val head: HeadTracker, priv
         meshWork += "tour" to {
             val cube = unitCube!!
             shell = ModelEntity(cube, unlit(shared, MriColors.TourHighlight, BlendingMode.TRANSPARENT, opacity = 0.28f, depthWrite = false)).also { root?.addChild(it); it.setVisible(false) }
-            leader = ModelEntity(cube, unlit(shared, MriColors.TourHighlight)).also { root?.addChild(it); it.setVisible(false) }
             testMaterial = unlit(shared, Color.White, texture = shared.keep(TextureResource.create(Textures.orientationTest(128))), twoSided = false)
             testQuad = ModelEntity(unitQuad!!, testMaterial!!).also { root?.addChild(it); it.setVisible(false) }
-            // D21 grab bar under the main card: a pale pill, its own unscaled hit box a little larger
-            grabBar = ModelEntity(cube, unlit(shared, Color.White, BlendingMode.TRANSPARENT, opacity = 0.85f)).also { root?.addChild(it); it.setLocal(position = STOW) }
-            grabHit = Entity().also {
-                runCatching { it.setName("hit:grab") }
-                it.addBoxCollider(V3(GRAB_HIT_W, GRAB_HIT_H, 0.03f))
-                runCatching { it.components.set(InteractableComponent()) }
-                root?.addChild(it)
-                it.setLocal(position = STOW)
-            }
         }
     }
 
@@ -558,7 +526,15 @@ class MriScene(private val vm: MriViewModel, private val head: HeadTracker, priv
         runMeshWork(if (deltaTime.isFinite() && deltaTime > 0f) deltaTime else 1f, now)
         attachments?.let { if (slots.values.any { s -> s.panel == null }) bind(it) }
         if (paused) return
-        val pose = head.pose() ?: return
+        val pose = head.pose()
+        val state0 = vm.state.value
+        // every window open waits for an accepted head pose (D9; LevelGate, native-window-move §7 item 9)
+        if (pose == null) {
+            MriShared.stepGate(now, null, false)
+            return
+        }
+        val supine = WindowLayout.supineOk(pose.rotation) && (state0.posture == Posture.LIE || !state0.postureManual)
+        MriShared.stepGate(now, WindowLayout.pitchDeg(pose.rotation), supine)
         if (!headReported) {
             headReported = true
             vm.onHeadFound()
@@ -584,11 +560,13 @@ class MriScene(private val vm: MriViewModel, private val head: HeadTracker, priv
             vm.onPostureReading(pose.forward.y)
         }
 
-        // the room's frame: T1, T10, posture changes in S01 (D9: from the current head pose)
+        // the room's frame: T1, T10, posture changes in S01, every window open outside a run (D9: from the current
+        // head pose; sitting, around the direction the window opened in: WindowLayout, the one placement function)
         if (state.frameEpoch != frameEpoch || scanFrame == null) {
             frameEpoch = state.frameEpoch
-            scanFrame = ScanFrame.from(pose.position, pose.rotation, state.posture)
-            MriLog.i("SCENE frame h0=${scanFrame?.h0} b=${scanFrame?.b} posture=${state.posture}")
+            val around = if (state.posture == Posture.SIT) vm.windowRotation ?: pose.rotation else pose.rotation
+            scanFrame = WindowLayout.frameFor(pose.position, around, state.posture)
+            MriLog.i("SCENE frame h0=${scanFrame?.h0} b=${scanFrame?.b} posture=${state.posture} aroundWindow=${vm.windowRotation != null}")
         }
         val f = scanFrame ?: return
         if (layoutPosture != f.posture) layout(f)
@@ -670,8 +648,10 @@ class MriScene(private val vm: MriViewModel, private val head: HeadTracker, priv
      * With nothing behind a panel, the panel takes every press on it (Spatial Ruler's measurement).
      */
     private fun updateHits(state: UiState, pose: HeadPose, f: ScanFrame) {
-        val panels = slots.values.mapNotNull { it.rect() }
-        val callable = state.screen == Screen.S03 || state.screen.inRun || (state.lost && state.screen == Screen.S10)
+        val panels = slots.values.mapNotNull { it.rect() } + listOfNotNull(windowRect())
+        // the room's boxes serve the pinch-held call inside the run only; in the tour (S03) the pinch-held call goes on
+        // the tour objects' own boxes (or the trigger), so no wall box can sit behind the window's buttons there
+        val callable = state.screen.inRun || (state.lost && state.screen == Screen.S10)
         val roomOn = roomHitsOn && (callable || !guardOn)
         val out = StringBuilder()
         val roomOrigin = f.h0 + f.b * slide.s
@@ -711,6 +691,14 @@ class MriScene(private val vm: MriViewModel, private val head: HeadTracker, priv
         }
     }
 
+    /** The main window's rectangle where it opened (it may have been dragged since: then this is a best guess). */
+    private fun windowRect(): Occlusion.PanelRect? {
+        if (!MriShared.windowOpen) return null
+        val w = vm.windowRect ?: return null
+        val rot = Q4.fromBasis(w.right, w.up, w.normal)
+        return Occlusion.PanelRect(w.center, rot, WindowLayout.W_DP * WindowLayout.DP_M, WindowLayout.H_DP * WindowLayout.DP_M)
+    }
+
     /** Positions that depend only on the frame's posture (room heights, table, coil axis). */
     private fun layout(f: ScanFrame) {
         layoutPosture = f.posture
@@ -741,14 +729,14 @@ class MriScene(private val vm: MriViewModel, private val head: HeadTracker, priv
         windowGlass?.setLocal(position = V3(0f, windowY, ROOM_L / 2 - 0.02f), rotation = Q4.facing(V3(0f, 0f, -1f), V3.UP), scale = V3(1.6f, 1.0f, 1f))
         // user group: lateral sign of the right hand in local X (+X = up × b)
         val rs = if (lie) -1f else 1f
-        tableTop?.setLocal(position = V3(0f, TABLE_TOP - 0.04f, 0.6f), scale = V3(0.55f, 0.08f, 2.10f))
+        tableTop?.setLocal(position = V3(0f, TABLE_TOP - 0.04f, 0.6f))
         val baseH = (TABLE_TOP - 0.08f) - floorY
-        tableBase?.setLocal(position = V3(0f, floorY + baseH / 2, 1.3f), scale = V3(0.30f, baseH, 0.60f))
-        pillow?.setLocal(position = V3(0f, TABLE_TOP + 0.03f, 0f), scale = V3(0.30f, 0.06f, 0.25f))
+        tableBase?.setLocal(position = V3(0f, floorY + baseH / 2, 1.3f), scale = V3(1f, baseH, 1f))
+        pillow?.setLocal(position = V3(0f, TABLE_TOP + 0.03f, 0f))
         for (e in listOfNotNull(tableTop, tableBase, pillow, hose)) e.setVisible(lie)
         if (lie) {
             ball?.setLocal(position = V3(rs * 0.22f, TABLE_TOP + BALL_R, 0.55f), scale = V3(BALL_R, BALL_R, BALL_R))
-            hose?.setLocal(position = V3(rs * 0.22f, TABLE_TOP + 0.008f, 0.55f + 0.25f + BALL_R), scale = V3(0.012f, 0.012f, 0.5f))
+            hose?.setLocal(position = V3(rs * 0.22f, TABLE_TOP + 0.008f, 0.55f + 0.25f + BALL_R))
             coil?.setLocal(position = V3(0f, -0.06f, 0f), rotation = Q4.IDENTITY)
         } else {
             ball?.setLocal(position = V3(rs * 0.18f, -0.55f, -0.25f), scale = V3(BALL_R, BALL_R, BALL_R))
@@ -777,54 +765,28 @@ class MriScene(private val vm: MriViewModel, private val head: HeadTracker, priv
 
     private fun placePanels(state: UiState, pose: HeadPose, f: ScanFrame) {
         val screen = state.screen
-        // main card: one at a time (S12 / S13 replace its content, R1-6); the pause card only once the world is out
-        val cardId: String? =
-            when (screen) {
-                Screen.S00, Screen.S01, Screen.S02, Screen.S11, Screen.S13 -> PanelIds.CARD
-                Screen.S12 -> PanelIds.CARD_TALL
-                Screen.S09 -> if (state.pauseCardReady) PanelIds.CARD else null
-                else -> null
-            }
-        if (cardId != null) {
-            val pause = screen == Screen.S09
-            if (!cardVisibleLast || state.cardEpoch != cardEpoch || cardPos == null || pause != pauseCardPlaced) {
+        // the chip: "open panel" while the window is closed, "look straight ahead" while an open waits for the head (D9);
+        // placed once per appearance in front of the head (yaw only, lying: above the face), never followed
+        val chipOn = MriShared.levelHint || MriShared.windowClosed
+        if (chipOn) {
+            if (!chipShownLast || chipPos == null || state.cardEpoch != cardEpoch) {
                 cardEpoch = state.cardEpoch
-                pauseCardPlaced = pause
-                // D9: every appearance in front of the current head pose
-                cardPos = if (pause) inFront(pose, f, PAUSE_DISTANCE, 0f) else inFront(pose, f, CARD_DISTANCE, CARD_DOWN_DEG)
-                cardScale = if (pause) PAUSE_SCALE else CARD_SCALE
+                chipPos = chipPlace(pose, f)
             }
-            val pos = cardPos!!
-            val rot = facingHead(pos, pose, f)
-            slots[cardId]?.place(pos, rot, cardScale)
-            placeGrab(if (screen == Screen.S09) null else pos, rot, if (cardId == PanelIds.CARD_TALL) 440f else 400f)
-            for (id in listOf(PanelIds.CARD, PanelIds.CARD_TALL)) if (id != cardId) slots[id]?.hide()
+            val pos = chipPos!!
+            val rot = if (f.posture == Posture.LIE) facingHead(pos, pose, f) else Q4.facing((pose.position - pos).horizontal().let { if (it.length < 1e-3f) V3.AHEAD * -1f else it }, V3.UP)
+            slots[PanelIds.CHIP]?.place(pos, rot, CHIP_SCALE)
         } else {
-            slots[PanelIds.CARD]?.hide()
-            slots[PanelIds.CARD_TALL]?.hide()
-            placeGrab(null, Q4.IDENTITY, 0f)
+            slots[PanelIds.CHIP]?.hide()
         }
-        cardVisibleLast = cardId != null
+        chipShownLast = chipOn
 
-        // tour tag at the main card's place (R2-9)
-        if (screen == Screen.S03) {
-            if (!tagShownLast || state.cardEpoch != cardEpoch || tagPos == null) {
-                cardEpoch = state.cardEpoch
-                tagPos = inFront(pose, f, CARD_DISTANCE, CARD_DOWN_DEG)
-            }
-            val pos = tagPos!!
-            slots[PanelIds.TAG]?.place(pos, facingHead(pos, pose, f), TAG_SCALE)
-        } else {
-            slots[PanelIds.TAG]?.hide()
-        }
-        tagShownLast = screen == Screen.S03
-
-        // caption strip: fixed with the user, never with the head (S05 onwards it stays on the bore's roof)
+        // the in-bore readout: fixed with the user, never with the head (S05 onwards on the bore's roof / rim); it stays
+        // through S09 (the choice is on the window, the strip says so)
         val captionOn =
             when (screen) {
-                Screen.S04, Screen.S05, Screen.S06, Screen.S07 -> true
+                Screen.S04, Screen.S05, Screen.S06, Screen.S07, Screen.S09 -> true
                 Screen.S10 -> !state.abandoning || state.lost
-                Screen.S09 -> !state.pauseCardReady
                 else -> false
             }
         if (captionOn) {
@@ -835,114 +797,29 @@ class MriScene(private val vm: MriViewModel, private val head: HeadTracker, priv
         }
     }
 
-    /** The grab bar 2.5 cm under the card's bottom edge, turned with the card; [cardPos] null = stowed. */
-    private fun placeGrab(cardPos: V3?, rot: Q4, heightDp: Float) {
-        val bar = grabBar ?: return
-        val hit = grabHit ?: return
-        if (cardPos == null) {
-            if (grabVisible) {
-                bar.setLocal(position = STOW)
-                hit.setLocal(position = STOW)
-                grabVisible = false
-            }
-            return
-        }
-        val half = heightDp * DP_M * cardScale / 2f
-        val at = cardPos - rot.rotate(V3.UP) * (half + GRAB_GAP_M)
-        bar.setLocal(position = at, rotation = rot, scale = V3(GRAB_W, GRAB_H, 0.004f))
-        hit.setLocal(position = at, rotation = rot)
-        grabVisible = true
-    }
-
-    fun isGrab(e: Entity): Boolean = grabHit?.let { it.id == e.id } == true
-
     /**
-     * D21: the system pointer drags the grab bar (pinch, or controller ray + trigger). The card follows the pointing
-     * line at the distance it had when grabbed, keeps facing the user every frame, and stays where it is released;
-     * "Re-centre" still brings it back in front.
+     * The chip on the line of sight (native-window-move §7 item 9: the hint has to be seen while the head is tilted):
+     * sitting, at the head's pitch − 12°, clamped to ±40°, 0.75 m, upright and turned by yaw only (D9); lying, above
+     * the face like the old cards (design R1-1).
      */
-    fun onCardDrag(phase: String, start: Offset3D?, value: SpatialDragValue) {
-        val pose = head.last ?: return
-        when (phase) {
-            "start" -> {
-                val at = cardPos ?: return
-                val press = start?.let { toStage(it.x, it.y, it.z) } ?: at
-                cardDrag = CardDrag(press)
-                MriLog.i("DRAG card start press=$press card=$at")
-            }
-            "move" -> {
-                val d = cardDrag ?: return
-                val a = value.dragAmount
-                d.moves++
-                d.totalPx = V3(d.totalPx.x + a.x, d.totalPx.y + a.y, d.totalPx.z + a.z)
-                d.hand = handDelta(d.totalPx) ?: d.hand
-                if (!d.begun && d.hand.length >= DRAG_START_M) {
-                    val at = cardPos ?: return
-                    val to = at - pose.position
-                    if (to.length < 1e-3f) return
-                    d.begun = true
-                    d.dir = to.normalized()
-                    d.distance = to.length
-                    val pitch = Math.toDegrees(kotlin.math.asin(pose.forward.y.coerceIn(-1f, 1f).toDouble())).toFloat()
-                    d.depth = DragLine.equivalentDepth((d.press - pose.position).length, pitch)
-                    d.prevHand = d.hand
-                    MriLog.i("DRAG card begin dist=${"%.2f".format(d.distance)}")
-                }
-                if (d.begun) {
-                    val dir = d.dir ?: return
-                    val right = pose.rotation.rotate(V3.RIGHT)
-                    val turned = DragLine.turn(dir, d.hand - d.prevHand, d.depth, right, pose.rotation.up, pose.forward)
-                    d.prevHand = d.hand
-                    d.dir = turned
-                    cardPos = pose.position + turned * d.distance
-                    if (d.moves % 10 == 1) MriLog.i("DRAG card move at=$cardPos")
-                }
-            }
-            "end", "cancel" -> {
-                val d = cardDrag ?: return
-                cardDrag = null
-                MriLog.i("DRAG card $phase moved=${d.begun} at=$cardPos")
-            }
-        }
-    }
-
-    private fun handDelta(px: V3): V3? {
-        val moved = toStage(px.x, px.y, px.z) ?: return null
-        val origin = toStage(0f, 0f, 0f) ?: return null
-        return moved - origin
-    }
-
-    /** View-local pixels of a spatial gesture -> Stage metres (Spatial Ruler / dose-distance). */
-    private fun toStage(x: Float, y: Float, z: Float): V3? {
-        val c = content ?: return null
-        val probe = contentProbe ?: return null
-        return runCatching {
-                val local = c.convertPosition(Vector3(x, y, z), ViewCoordinateSpace.Local, c.localSpatialCoordinateSpace)
-                probe.convertPositionTo(local, null).domain()
-            }
-            .getOrNull()
-    }
-
-    /** `dragcard dx dy` (metres, the view's right / up): moves the card as a drag would (QA without a pointer). */
-    fun debugMoveCard(dx: Float, dy: Float) {
-        val pose = head.last ?: return
-        val at = cardPos ?: return
-        val dist = (at - pose.position).length
-        val moved = at + pose.rotation.rotate(V3.RIGHT) * dx + pose.rotation.up * dy
-        cardPos = pose.position + (moved - pose.position).normalized() * dist
-        MriLog.i("DRAG card debug at=$cardPos")
+    private fun chipPlace(pose: HeadPose, f: ScanFrame): V3 {
+        if (f.posture == Posture.LIE) return inFront(pose, f, CHIP_DISTANCE, CHIP_DOWN_DEG)
+        val yaw = WindowLayout.yawForward(pose.rotation)
+        val p = (WindowLayout.pitchDeg(pose.rotation) - CHIP_DOWN_DEG).coerceIn(-40f, 40f).toRad()
+        return pose.position + (yaw * cos(p) + V3.UP * sin(p)) * CHIP_DISTANCE
     }
 
     /**
      * Where the caption strip is. Lying: on the bore's roof once the front face has passed the head (s ≥ 1.0, R2-7),
-     * radius − 0.015, [MriViewModel.captionOffset] towards the feet, scale 0.5; before that 0.6 m up in view, scale
-     * 0.8. Sitting: on the bore's far rim, 0.80 m ahead, 0.19 up (design 0.24), scale 1.0 (R2-2) — visible through the bore all
+     * radius − 0.015, [MriViewModel.captionOffset] towards the feet, scale 0.5; before that 0.6 m up and
+     * [CAPTION_PRE_AXIAL] towards the feet (28 degrees from straight up: clear of a window opened above the face, whose outline
+     * with its system controls reaches about 21 degrees), scale 0.8. Sitting: on the bore's far rim, 0.80 m ahead, 0.19 up (design 0.24), scale 1.0 (R2-2) — visible through the bore all
      * the way.
      */
     private fun captionPlace(f: ScanFrame): Pair<V3, Float> {
         val r = vm.state.value.settings.boreRadius
         return if (f.posture == Posture.LIE) {
-            if (slide.s >= Slide.FACE_AT_HEAD) f.at(vm.captionOffset, 0f, r - 0.015f) to CAPTION_SCALE_LIE else f.at(0.13f, 0f, 0.6f) to CAPTION_SCALE_PRE
+            if (slide.s >= Slide.FACE_AT_HEAD) f.at(vm.captionOffset, 0f, r - 0.015f) to CAPTION_SCALE_LIE else f.at(CAPTION_PRE_AXIAL, 0f, 0.6f) to CAPTION_SCALE_PRE
         } else {
             // 0.19 up, not the design's 0.24: at scale 1.0 the strip is 0.336 × 0.077 m and its top corners reached a
             // radius of 0.33 m, into the 0.30 m bore wall (emulator shot S04-t6)
@@ -961,11 +838,9 @@ class MriScene(private val vm: MriViewModel, private val head: HeadTracker, priv
             (if (coilLit) coilHighlight else coilMaterial)?.let { coil?.setMaterial(it) }
         }
         val sh = shell ?: return
-        val ld = leader ?: return
         if (stop == null) {
             if (lastHighlight != null) {
                 sh.setVisible(false)
-                ld.setVisible(false)
                 lastHighlight = null
             }
             return
@@ -978,29 +853,13 @@ class MriScene(private val vm: MriViewModel, private val head: HeadTracker, priv
             lastBehind = behind
             vm.onTourBehind(behind)
         }
-        // highlight shell 2% larger than the object (the coil is lit itself: the user's head is inside it)
+        // highlight shell 2% larger than the object (the coil is lit itself: the user's head is inside it). The tour's
+        // text is on the main window now, whose place the scene does not know once dragged: no leader line (v0.1.1)
         if (stop == TourStop.COIL) {
             sh.setVisible(false)
         } else {
             sh.setLocal(position = center, rotation = f.rotation, scale = size * 1.02f)
             sh.setVisible(true)
-        }
-        // leader line from the tag to the object
-        val from = tagPos ?: return
-        val d = center - from
-        val len = d.length
-        // no leader that passes the eyes (the coil at the head; sitting, the window behind the user): it would swell
-        // into a wedge across the view and cover the tag (emulator shots S03-3 / S03-4)
-        val t = if (len > 1e-4f) ((pose.position - from).dot(d) / (len * len)).coerceIn(0f, 1f) else 0f
-        val nearest = (from + d * t - pose.position).length
-        if (len > 0.05f && nearest > LEADER_MIN_HEAD_M) {
-            val dir = d * (1f / len)
-            val start = from + dir * 0.12f
-            val l = (len - 0.12f).coerceAtLeast(0.01f)
-            ld.setLocal(position = start + dir * (l / 2f), rotation = Q4.facing(dir, panelUp(f)), scale = V3(LEADER_W, LEADER_W, l))
-            ld.setVisible(true)
-        } else {
-            ld.setVisible(false)
         }
     }
 
@@ -1039,7 +898,7 @@ class MriScene(private val vm: MriViewModel, private val head: HeadTracker, priv
             testQuad?.setVisible(on)
         }
         if (!on) return
-        val base = cardPos ?: inFront(pose, f, CARD_DISTANCE, CARD_DOWN_DEG)
+        val base = chipPos ?: inFront(pose, f, CARD_DISTANCE, CARD_DOWN_DEG)
         val side = (pose.position - base).cross(panelUp(f)).normalized()
         val pos = base - side * 0.30f
         testQuad?.setLocal(position = pos, rotation = facingHead(pos, pose, f), scale = V3(0.12f, 0.12f, 1f))
@@ -1068,21 +927,14 @@ class MriScene(private val vm: MriViewModel, private val head: HeadTracker, priv
         const val BALL_R = 0.03f
         const val CARD_DISTANCE = 0.9f
         const val CARD_DOWN_DEG = 8f
-        const val CARD_SCALE = 0.8f
-        const val PAUSE_DISTANCE = 0.6f
-        const val PAUSE_SCALE = 0.6f
-        const val TAG_SCALE = 0.8f
+        const val CHIP_DISTANCE = 0.75f
+        const val CHIP_DOWN_DEG = 12f
+        const val CHIP_SCALE = 0.8f
+        const val CAPTION_PRE_AXIAL = 0.32f
         const val CAPTION_SCALE_LIE = 0.5f
         const val CAPTION_SCALE_PRE = 0.8f
         const val CAPTION_SCALE_SIT = 1.0f
-        const val LEADER_W = 0.004f
         const val DP_M = 0.0008f
-        const val GRAB_W = 0.10f
-        const val GRAB_H = 0.012f
-        const val GRAB_GAP_M = 0.025f
-        const val GRAB_HIT_W = 0.16f
-        const val GRAB_HIT_H = 0.045f
-        const val DRAG_START_M = 0.01f
         const val LEADER_MIN_HEAD_M = 0.3f
         const val HOLD_MS = 400L
         const val POSTURE_MS = 500L

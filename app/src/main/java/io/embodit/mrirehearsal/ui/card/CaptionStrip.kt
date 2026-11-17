@@ -13,9 +13,11 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -23,14 +25,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.pico.spatial.ui.design.PicoTheme
-import com.pico.spatial.ui.design.Text
 import io.embodit.mrirehearsal.R
 import io.embodit.mrirehearsal.domain.Caption
 import io.embodit.mrirehearsal.domain.Motion
@@ -43,37 +45,44 @@ import io.embodit.mrirehearsal.ui.theme.str
 import kotlinx.coroutines.delay
 
 /**
- * The caption strip (420 × 96 dp; scale 0.5 on the bore's roof lying, 1.0 on the bore's rim sitting). Top row: the
- * sequence and its progress, the stillness ring, the mute button with its label (D15). Bottom row: the
- * technologist's caption at 24 dp, one line; a caption too long for one line is two parts shown 3 s each.
+ * The in-bore readout (420 × 96 dp; scale 0.5 on the bore's roof lying, 1.0 on the bore's rim sitting). It is a reading
+ * fixed on the scanner, not a panel: the main window carries the same lines, but in Full Space the gantry hides the
+ * window while the head is in the bore (native-window-move §4 / §3.6: readings on the 3D body stay on the body). Top
+ * row: sequence and progress, the stillness ring, mute with its label (D15). Bottom row: the technologist's caption at
+ * 24 dp, one line; a caption too long for one line is two parts shown 3 s each.
  */
 @Composable
 fun CaptionStrip(state: UiState, vm: MriViewModel) {
-    GlassRoot {
-        Column(modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 6.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(progressText(state), style = PicoTheme.typography.labelLarge, color = PicoTheme.colorScheme.labelSecondary, maxLines = 1, modifier = Modifier.weight(1f))
-                StillRing(state)
-                MuteButton(state.settings.muted, onClick = { vm.toggleMute() })
+    CompositionLocalProvider(LocalPanelName provides "strip") {
+        GlassRoot {
+            Column(modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 6.dp)) {
+                // the mute button is the only control on the strip; its 16 dp gap to the ring (profile B31)
+                Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(BUTTON_GAP)) {
+                    Txt(progressText(state), style = PicoTheme.typography.labelLarge, color = PicoTheme.colorScheme.labelSecondary, modifier = Modifier.weight(1f))
+                    StillRing(state, 24.dp)
+                    MuteButton(state.settings.muted, onClick = { vm.toggleMute() }, height = MIN_TOUCH)
+                }
+                Spacer(Modifier.height(2.dp))
+                CaptionLine(captionText(state.caption), PicoTheme.typography.bodyLarge.copy(fontSize = 24.sp, lineHeight = 30.sp), 1)
             }
-            CaptionLine(captionText(state.caption))
         }
     }
 }
 
 @Composable
-private fun progressText(state: UiState): String {
+fun progressText(state: UiState): String {
     val seg = state.clock.current
     return when (state.screen) {
         Screen.S06, Screen.S07 -> str(R.string.progress_fmt, seqName(seg?.type), clockText(state.clock.elapsed), clockText((seg?.seconds ?: 0).toFloat()))
         Screen.S05 -> seqName(seg?.type)
+        Screen.S04, Screen.S10 -> str(R.string.run_sliding)
         else -> levelName(state.level)
     }
 }
 
-/** 24 dp ring: white / amber (minor) / red (major); breathing 4 s in, 4 s out in S05 and S07 (only a rhythm). */
+/** The stillness ring: white / amber (minor) / red (major); breathing 4 s in, 4 s out in S05 and S07 (only a rhythm). */
 @Composable
-private fun StillRing(state: UiState) {
+fun StillRing(state: UiState, size: Dp) {
     val color =
         when (state.motion) {
             Motion.STILL -> MriColors.Still
@@ -92,17 +101,22 @@ private fun StillRing(state: UiState) {
     // a dark rim under the ring keeps the white "still" ring at >= 3:1 on light glass too
     val rim = PicoTheme.colorScheme.labelPrimary
     val lightRim = rim.luminance() < 0.5f
-    Canvas(modifier = Modifier.size(24.dp)) {
-        val stroke = 3.dp.toPx()
-        val r = size.minDimension / 2 - stroke / 2 - 1.dp.toPx()
+    Canvas(modifier = Modifier.size(size)) {
+        val stroke = size.toPx() / 8f
+        val r = this.size.minDimension / 2 - stroke / 2 - 1.dp.toPx()
         if (lightRim) drawCircle(rim.copy(alpha = 0.6f), radius = r, style = Stroke(width = stroke + 2.dp.toPx()))
         drawCircle(color.copy(alpha = alpha), radius = r, style = Stroke(width = stroke))
     }
 }
 
+/** A caption; "a|b" is two parts shown 3 s each on one line ([lines] = 1), or both at once when it may wrap. */
 @Composable
-private fun CaptionLine(text: String) {
+fun CaptionLine(text: String, style: TextStyle, lines: Int, modifier: Modifier = Modifier.fillMaxWidth(), align: TextAlign = TextAlign.Center) {
     val parts = remember(text) { text.split('|').map { it.trim() }.filter { it.isNotEmpty() } }
+    if (lines > 1) {
+        Txt(parts.joinToString(if (parts.any { it.any { c -> c.code > 0x2E80 } }) "" else " "), style = style, color = PicoTheme.colorScheme.labelPrimary, maxLines = lines, textAlign = align, modifier = modifier)
+        return
+    }
     var index by remember(text) { mutableIntStateOf(0) }
     LaunchedEffect(parts) {
         index = 0
@@ -113,18 +127,11 @@ private fun CaptionLine(text: String) {
             }
         }
     }
-    Text(
-        parts.getOrNull(index) ?: "",
-        style = PicoTheme.typography.bodyLarge.copy(fontSize = 24.sp, lineHeight = 30.sp),
-        color = PicoTheme.colorScheme.labelPrimary,
-        maxLines = 1,
-        textAlign = TextAlign.Center,
-        modifier = Modifier.fillMaxWidth(),
-    )
+    Txt(parts.getOrNull(index) ?: "", style = style, color = PicoTheme.colorScheme.labelPrimary, maxLines = 1, textAlign = align, modifier = modifier)
 }
 
 @Composable
-private fun captionText(c: Caption): String =
+fun captionText(c: Caption): String =
     when (c) {
         Caption.TableMoves -> str(R.string.cap_table)
         is Caption.Settle ->
@@ -147,6 +154,7 @@ private fun captionText(c: Caption): String =
         }
         Caption.Done -> str(R.string.cap_done)
         Caption.Called -> str(R.string.cap_called)
+        Caption.SeePanel -> str(R.string.cap_see_panel)
         Caption.Lost -> str(R.string.cap_lost)
         Caption.None -> ""
     }

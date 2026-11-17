@@ -52,8 +52,16 @@ data class Slide(val s: Float = 0f, val target: Float = 0f, val speed: Float = S
         const val EASE_SEC = 0.5f
         const val EPS = 1e-4f
 
-        /** Target of a call: one metre back out, never past the park position (R2-1). */
-        fun callTarget(s: Float): Float = (s - 1.0f).coerceAtLeast(0f)
+        /**
+         * Target of a call: back to the park position. Design R2-1 had s − 1.0 (the head just out of the bore); v0.1.1
+         * shows the pause page in the system window, and only at park does the gantry clear the window's outline
+         * (WindowLayout, ≥ 10° from either eye), so the call goes all the way out at [CALL_SPEED].
+         */
+        @Suppress("UNUSED_PARAMETER")
+        fun callTarget(s: Float): Float = 0f
+
+        /** Speed of the call's slide out: 1.8 m in about 4.5 s. */
+        const val CALL_SPEED = 0.45f
 
         const val RESUME_TARGET = MAX
         const val ABANDON_TARGET = 0f

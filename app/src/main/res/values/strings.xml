@@ -11,7 +11,7 @@
     <string name="link_sit">I want to sit</string>
     <string name="link_lie">I\'m lying down</string>
     <string name="enter">Enter scan room</string>
-    <string name="settings">Settings</string>
+    <string name="ready_next">Next: a short tour, then scans of 30 s, 2 min and 5 min.</string>
     <string name="mute">Mute</string>
     <string name="unmute">Sound on</string>
     <string name="room_title">Scan room</string>
@@ -24,16 +24,35 @@
     <string name="tour_stops">%1$d stops</string>
     <string name="best_none">—</string>
     <string name="best_fmt">%1$s %2$d</string>
-    <string name="drag_hint">Drag the bar below to move</string>
-    <string name="recenter">Re-centre</string>
     <string name="lost_short">Tracking lost — hold on</string>
+
+    <!-- main window: TabBar pages (labels and accessibility names) -->
+    <string name="tab_scan">Scan</string>
+    <string name="tab_howto">How to</string>
+    <string name="tab_about">About</string>
+    <string name="tab_settings">Settings</string>
+
+    <string name="recall">Bring back in front</string>
+    <string name="quit_app">Quit app</string>
+    <string name="quit_confirm">Quit MRI Rehearsal?</string>
+    <string name="quit_keep">Your best scores are kept.</string>
+    <string name="cancel">Cancel</string>
+    <string name="quit">Quit</string>
 
     <string name="called">Technologist called</string>
     <string name="called_body">We heard you. Pausing now.</string>
+    <string name="called_sliding">Sliding you out…</string>
     <string name="resume">Resume scan</string>
     <string name="finish">Slide out &amp; finish</string>
+    <string name="restart_level">Restart this level</string>
+    <string name="restart_confirm">Restart this level?</string>
+    <string name="restart_body">This run\'s progress is cleared and the scan starts from the first part.</string>
+    <string name="restart_yes">Restart</string>
+    <string name="finish_confirm">Slide out and finish?</string>
+    <string name="finish_body">This run ends without a score.</string>
+    <string name="finish_yes">Finish</string>
     <string name="done_of">Done %1$s / %2$s</string>
-    <string name="lost_pause">Tracking lost — the card stays here.</string>
+    <string name="lost_pause">Tracking lost — the scan stays paused.</string>
 
     <string name="result">Scan complete</string>
     <string-array name="grades">
@@ -50,6 +69,13 @@
     <string name="back_room">Back to room</string>
     <string name="legend">amber: small movement · red: big · grey: break</string>
 
+    <!-- the run page (in the bore the same lines are on the readout on the bore) -->
+    <string name="motion_still">Still</string>
+    <string name="motion_minor">Small movement</string>
+    <string name="motion_major">Big movement</string>
+    <string name="call_hint">To stop: hold the trigger, or pinch and hold.</string>
+    <string name="run_sliding">The table is moving</string>
+
     <string name="settings_title">Settings</string>
     <string name="language">Language</string>
     <string name="lang_zh">中文</string>
@@ -61,15 +87,14 @@
     <string name="coil">Head coil</string>
     <string name="skip">Skip slide animation</string>
     <string name="volume">Volume</string>
-    <string name="about">About</string>
+    <string name="volume_pct">%1$d %%</string>
     <string name="clear_scores">Clear scores</string>
-    <string name="back">Back</string>
 
     <string name="about_title">About</string>
     <string name="version_fmt">Version %1$s</string>
     <string name="about_ack">Thanks to Little Journey and Michigan Medicine, whose MRI preparation experiences inspired this rehearsal.</string>
-    <string name="about_audio">Scanner sounds: synthesised for this app, no recordings. Free to use.</string>
-    <string name="about_oss">Fonts: Noto Sans, Noto Sans SC (SIL Open Font License 1.1).</string>
+    <string name="about_audio">Scanner sounds: rendered in code for this app from the sequences\' pulse patterns, not recordings. Free to use.</string>
+    <string name="about_oss">Fonts: Noto Sans, Noto Sans SC (SIL Open Font License 1.1). Icons: Material Icons / Material Symbols (Apache License 2.0).</string>
 
     <string name="cap_table">The table is moving now —|that\'s normal.</string>
     <string name="cap_settle_3">Hold this position: 3…</string>
@@ -84,7 +109,8 @@
     <string name="cap_gap_same">Well done. Relax, breathe normally.|The next part is about as loud.</string>
     <string name="cap_last">This is the last one.</string>
     <string name="cap_done">All done —|the table is coming out.</string>
-    <string name="cap_called">We heard you. Stopping now|and sliding you out a little.</string>
+    <string name="cap_called">We heard you. Stopping now|and sliding you out.</string>
+    <string name="cap_see_panel">Resume or finish:|choose on the panel.</string>
     <string name="cap_lost">Tracking lost — don\'t worry,|the scan is paused.</string>
     <string name="progress_fmt">%1$s · %2$s / %3$s</string>
     <string name="seq_loc">Localizer</string>
@@ -110,6 +136,36 @@
     </string-array>
     <string name="tour_behind">(Behind you — turn round.)</string>
     <string name="tour_demo">That\'s a call — the technologist answers right away.</string>
+    <string name="tour_tap_hint">Tip: tap a lit object in the room to jump to it.</string>
+    <string name="tour_of">%1$d / %2$d</string>
     <string name="prev">Previous</string>
     <string name="next_fmt">Next (%1$d/%2$d)</string>
+
+    <!-- the Stage chip while the main window is closed or waiting -->
+    <string name="chip_open">Open panel</string>
+    <string name="chip_level">Look straight ahead —|the panel opens.</string>
+    <string name="chip_level_lie">Look straight ahead, or lie back|and look up — the panel opens.</string>
+
+    <!-- How to (settings page "怎么操作", profile B19): each main action, hands and controller -->
+    <string name="how_to_title">How to</string>
+    <string name="how_to_hands_line">Hands: %1$s</string>
+    <string name="how_to_ctrl_line">Controller: %1$s</string>
+    <string name="how_to_press">Press a button</string>
+    <string name="how_to_press_hands">look at it and pinch.</string>
+    <string name="how_to_press_ctrl">point the ray at it, pull the trigger.</string>
+    <string name="how_to_move">Move or close this panel</string>
+    <string name="how_to_move_hands">look at the dot under the panel, pinch its middle knob and move; × closes it.</string>
+    <string name="how_to_move_ctrl">point at the dot under the panel, hold the trigger on its middle knob and move.</string>
+    <string name="how_to_call">Stop the scan (call ball)</string>
+    <string name="how_to_call_hands">pinch and hold for half a second on the room.</string>
+    <string name="how_to_call_ctrl">hold the trigger for half a second, anywhere.</string>
+    <string name="how_to_still">Keep still in the scanner</string>
+    <string name="how_to_still_hands">lie back, rest your head; the ring stays white.</string>
+    <string name="how_to_still_ctrl">same; amber = small movement, red = big.</string>
+    <string name="how_to_tour">Learn the room (tour)</string>
+    <string name="how_to_tour_hands">look at a lit object and pinch to jump to it.</string>
+    <string name="how_to_tour_ctrl">point at it and pull the trigger.</string>
+    <string name="how_to_recall">Lost the panel?</string>
+    <string name="how_to_recall_hands">pinch Open panel in front of you, or Settings ▸ Bring back in front.</string>
+    <string name="how_to_recall_ctrl">point at Open panel and pull the trigger.</string>
 </resources>
