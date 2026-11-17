@@ -145,6 +145,31 @@ class WindowLayoutTest {
         assertTrue("strip at $a deg, window controls at $w deg", a - w >= 2f)
     }
 
+    /** The numbers for ui-audit.md §10 (occlusion table): printed, and each must clear 10 deg. */
+    @Test
+    fun auditTable() {
+        val rows = ArrayList<String>()
+        for ((label, eye) in listOf("sit 1.2 m" to V3(0f, 1.2f, 0f), "stand 1.6 m" to V3(0f, 1.6f, 0f))) {
+            for (turn in listOf(0f, 90f, 180f)) for (pitch in listOf(-10f, 0f, 10f)) {
+                val rot = head(-turn, pitch) // turned right by [turn], the window (re)opened there, the room re-laid
+                val sep = sepAtPark(eye, rot, Posture.SIT)
+                val off = WindowLayout.maxCornerOffAxisDeg(eye, rot, WindowLayout.outline(WindowLayout.actualWindow(eye, rot, Posture.SIT)))
+                rows += "| $label | turned ${turn.toInt()} deg, pitch ${pitch.toInt()} | %.1f | %.1f |".format(sep, off)
+                assertTrue(sep >= WindowLayout.MIN_SEP_DEG)
+            }
+        }
+        val eye = V3(0f, 0.75f, 0f)
+        for (tilt in listOf(-7f, 0f, 20f, 40f)) {
+            val rot = lying(tilt)
+            val sep = sepAtPark(eye, rot, Posture.LIE)
+            val off = WindowLayout.maxCornerOffAxisDeg(eye, rot, WindowLayout.outline(WindowLayout.actualWindow(eye, rot, Posture.LIE)))
+            rows += "| lying | looking ${tilt.toInt()} deg towards the feet | %.1f | %.1f |".format(sep, off)
+            assertTrue(sep >= WindowLayout.MIN_SEP_DEG)
+        }
+        println("AUDIT | eye | head when the window opened | window outline to gantry, min of both eyes (deg) | farthest outline corner from the line of sight (deg) |")
+        rows.forEach { println("AUDIT $it") }
+    }
+
     // ---- the level gate -----------------------------------------------------------------------------------------
 
     @Test
