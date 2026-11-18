@@ -2,15 +2,18 @@ package io.embodit.mrirehearsal.platform
 
 import android.content.Context
 import android.media.AudioAttributes
-import android.media.MediaPlayer
 import android.media.SoundPool
 import io.embodit.mrirehearsal.domain.SeqType
 
 /**
  * Scan noise and cues with the native Android players (design `audio.playback`): no head-locked spatialisation,
- * the noise surrounds the head anyway. SoundPool loops the short beds (T1 / T2 / EPI ≈ 10 s, gap ≈ 8 s, motor ≈ 1.2 s)
- * and plays the cues; MediaPlayer loops the ≈ 5 s localiser. The scan-room loops are CC0 freesound recordings cut by
- * tools/cut_cc0.py (sources in its docstring); the UI cues tick / call come from tools/make_audio.py.
+ * the noise surrounds the head anyway. SoundPool loops every bed (localiser ≈ 5 s, T1 / T2 / EPI ≈ 10 s, gap ≈ 8 s,
+ * motor ≈ 1.2 s) and plays the cues. The scan-room loops are CC0 freesound recordings cut by tools/cut_cc0.py (sources
+ * in its docstring); the UI cues tick / call come from tools/make_audio.py.
+ *
+ * v0.1.1 (versionCode 3): the localiser no longer loops in a MediaPlayer. On the emulator its loop restart put a click
+ * into the recording at every seam (a 0.23 step against a median of 0.01) while the same file looped offline and in
+ * SoundPool is seamless.
  *
  * Every call comes from the main thread (the ViewModel). [release] frees both players.
  */
@@ -20,7 +23,6 @@ class ScanAudio(context: Context) {
     private val pool = SoundPool.Builder().setMaxStreams(4).setAudioAttributes(attributes).build()
     private val ids = HashMap<String, Int>()
     private val loaded = HashSet<Int>()
-    private var loc: MediaPlayer? = null
     private var bedStream = 0
     private var motorStream = 0
     private var bed: SeqType? = null
@@ -31,18 +33,9 @@ class ScanAudio(context: Context) {
             if (status == 0) loaded += sampleId
             MriLog.i("AUDIO loaded id=$sampleId status=$status (${loaded.size}/${ids.size})")
         }
-        for (name in listOf("t1", "t2", "epi", "gap", "motor", "tick", "call")) {
+        for (name in listOf("loc", "t1", "t2", "epi", "gap", "motor", "tick", "call")) {
             runCatching { app.assets.openFd("audio/$name.wav").use { fd -> ids[name] = pool.load(fd, 1) } }.onFailure { MriLog.e("AUDIO load $name failed: $it") }
         }
-        loc =
-            runCatching {
-                MediaPlayer().apply {
-                    app.assets.openFd("audio/loc.wav").use { fd -> setDataSource(fd.fileDescriptor, fd.startOffset, fd.length) }
-                    setAudioAttributes(attributes)
-                    isLooping = true
-                    prepare()
-                }
-            }.onFailure { MriLog.e("AUDIO loc failed: $it") }.getOrNull()
     }
 
     /** Effective volume: the setting, or 0 when muted. Applies to whatever is playing. */
@@ -50,32 +43,20 @@ class ScanAudio(context: Context) {
         volume = v.coerceIn(0f, 1f)
         if (bedStream != 0) pool.setVolume(bedStream, volume, volume)
         if (motorStream != 0) pool.setVolume(motorStream, volume * MOTOR_GAIN, volume * MOTOR_GAIN)
-        runCatching { loc?.setVolume(volume, volume) }
     }
 
-    /** Starts the bed of [type] (the localiser from its start), stopping the previous one. */
+    /** Starts the bed of [type] from its start, stopping the previous one. */
     fun playBed(type: SeqType) {
         stopBed()
         bed = type
-        if (type == SeqType.LOC) {
-            runCatching {
-                loc?.apply {
-                    seekTo(0)
-                    setVolume(volume, volume)
-                    start()
-                }
-            }
-        } else {
-            val id = ids[type.name.lowercase()] ?: return
-            bedStream = pool.play(id, volume, volume, 1, -1, 1f)
-        }
+        val id = ids[type.name.lowercase()] ?: return
+        bedStream = pool.play(id, volume, volume, 1, -1, 1f)
         MriLog.i("AUDIO bed $type stream=$bedStream vol=$volume")
     }
 
     fun stopBed() {
         if (bedStream != 0) pool.stop(bedStream)
         bedStream = 0
-        runCatching { if (loc?.isPlaying == true) loc?.pause() }
         if (bed != null) MriLog.i("AUDIO bed stop")
         bed = null
     }
@@ -106,8 +87,6 @@ class ScanAudio(context: Context) {
 
     fun release() {
         stopAll()
-        runCatching { loc?.release() }
-        loc = null
         pool.release()
     }
 

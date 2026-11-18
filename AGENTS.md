@@ -38,7 +38,7 @@ loops from the CC0 freesound recordings), `python tools/make_audio.py` (UI cues 
 ```
 Main.kt                DefaultStage { MriScreen() } + WindowContainer("MriWindow", Planar) { MriWindow() }
 platform/              SpatialApplication, LaunchActivity, MriLog, MriGraph; HeadTracker (HMDTrackingProvider + debug offset),
-                       ControllerInput (trigger held = call ball), ScanAudio (SoundPool beds + cues, MediaPlayer localiser)
+                       ControllerInput (trigger held = call ball), ScanAudio (SoundPool: every bed loop + cues)
 domain/                MathKit, Stillness (judge + score), Plan (sequences, levels, run clock), Slide (world offset s),
                        Frame (posture judge, ScanFrame), RunEngine, UiState (screens, WindowPage, VolumeSteps),
                        LevelGate (open the window only level / lying looking up), WindowLayout (THE placement function:
