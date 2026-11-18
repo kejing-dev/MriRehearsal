@@ -29,7 +29,8 @@ back to park, panel orientation), `OcclusionTest` (q2-1 line-of-sight guard), `W
 function for every window opening path, the window ≥ 10° from the gantry from either eye sitting / standing / lying,
 D9 upright window, the lying readout clear of the window, the level gate incl. the supine branch, volume steps).
 
-Assets: `python tools/make_icon.py …` (adaptive icon), `python tools/make_audio.py` (scan noise, rendered),
+Assets: `python tools/make_icon.py …` (adaptive icon), `python -I tools/cut_cc0.py FFMPEG MRI_MP3 BED_MP3 WORK` (scan-room
+loops from the CC0 freesound recordings), `python tools/make_audio.py` (UI cues tick / call only),
 `python -I tools/loudness.py OUT.wav` (loudness evidence at the default volume 0.8, rendered).
 
 ## Layout of the code (`app/src/main/java/io/embodit/mrirehearsal`)
@@ -170,9 +171,10 @@ Within tolerance; see the design package for the original wording. v0.1.1 change
 4. v0.1.1: lying, the window may open above the face (LevelGate supine branch, design R1-1) — an explicit exception to
    D9's "pitch 0", recorded in headpose-audit.md for the coordinator.
 5. v0.1.1: volume has three steps 40 / 80 / 100 % (default 80 %), the table motor at the beds' level: sounding RMS
-   −19.2 dBFS, peak −2.7 dBFS (rendered, `qa/loudness-v0.1.1.wav`).
-6. Scan noise is rendered by `tools/make_audio.py` (not a recording): no CC0 MRI recording on this PC; downloading one
-   from freesound needs the user's go-ahead (`build/sound-sources.md`).
+   −17.4 dBFS, peak −3.4 dBFS (rendered from the shipped assets, `qa/loudness-v0.1.1.wav`).
+6. Scan-room sounds (versionCode 3) are CC0 freesound recordings: a GE Signa MRI by parabolix (320532) and an electric
+   bed motor by kedarda (613865), cut into seamless loops by `tools/cut_cc0.py` (denoise, HP 120 Hz, LP 6 kHz,
+   crossfaded seam); only tick / call stay synthesised UI cues (`build/sound-sources.md`).
 7. Call ball (N7): controller trigger held 0.4 s anywhere (ControllerActionListener); the pinch path is a pinch held
    0.4 s on a room collider (in a run) or a tour object (S03).
 8. Tour hover highlight (N6): the system's hover on the tour colliders; the highlight shell is a 2 % larger translucent

@@ -91,7 +91,7 @@
     <string name="about_title">关于</string>
     <string name="version_fmt">版本 %1$s</string>
     <string name="about_ack">致谢 Little Journey 与 Michigan Medicine：它们的磁共振检查预习体验启发了本应用。</string>
-    <string name="about_audio">扫描声：按各序列的脉冲节奏为本应用用程序生成，不是录音，可自由使用。</string>
+    <string name="about_audio">扫描声：freesound.org 上的 CC0 录音，GE Signa 磁共振机录音作者 parabolix，电动床电机录音作者 kedarda，为本应用剪成循环并降噪。谢谢！</string>
     <string name="about_oss">字体：Noto Sans、Noto Sans SC（SIL 开源字体许可 1.1）。图标：Material Icons / Material Symbols（Apache 2.0）。</string>
 
     <string name="cap_table">台子要动了，这是正常的。</string>

@@ -93,7 +93,7 @@
     <string name="about_title">About</string>
     <string name="version_fmt">Version %1$s</string>
     <string name="about_ack">Thanks to Little Journey and Michigan Medicine, whose MRI preparation experiences inspired this rehearsal.</string>
-    <string name="about_audio">Scanner sounds: rendered in code for this app from the sequences\' pulse patterns, not recordings. Free to use.</string>
+    <string name="about_audio">Scanner sounds: CC0 recordings from freesound.org, a GE Signa MRI scanner by parabolix and an electric bed motor by kedarda, cut into loops and cleaned for this app. Thank you!</string>
     <string name="about_oss">Fonts: Noto Sans, Noto Sans SC (SIL Open Font License 1.1). Icons: Material Icons / Material Symbols (Apache License 2.0).</string>
 
     <string name="cap_table">The table is moving now —|that\'s normal.</string>

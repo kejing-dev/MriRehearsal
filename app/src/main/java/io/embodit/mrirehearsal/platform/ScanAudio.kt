@@ -8,8 +8,9 @@ import io.embodit.mrirehearsal.domain.SeqType
 
 /**
  * Scan noise and cues with the native Android players (design `audio.playback`): no head-locked spatialisation,
- * the noise surrounds the head anyway. SoundPool loops the short beds (T1 / T2 / EPI 10 s, gap 8 s, motor 4 s) and
- * plays the cues; MediaPlayer loops the 20 s localiser. All files are pre-rendered by tools/make_audio.py.
+ * the noise surrounds the head anyway. SoundPool loops the short beds (T1 / T2 / EPI ≈ 10 s, gap ≈ 8 s, motor ≈ 1.2 s)
+ * and plays the cues; MediaPlayer loops the ≈ 5 s localiser. The scan-room loops are CC0 freesound recordings cut by
+ * tools/cut_cc0.py (sources in its docstring); the UI cues tick / call come from tools/make_audio.py.
  *
  * Every call comes from the main thread (the ViewModel). [release] frees both players.
  */

@@ -17,7 +17,7 @@
 - **结果**：静止分 + 等级 + 时间线标出动的那几下，给下一关或再来一次
 - **设置**：首屏「叫回面前」「退出应用」；中英文、孔径 60 / 70 cm、动了提醒、头线圈、跳过进出动画、三档音量；静音一眼可见并记住；「怎么操作」页写清手势和手柄的做法
 - 所有界面在一个系统窗口里（原生页签：扫描 / 怎么操作 / 关于 / 设置），用窗口下方的系统控件拖动、关闭；扫描时孔洞里另有一条读数
-- 不联网、不需要账号、不申请权限；扫描噪声是程序合成的
+- 不联网、不需要账号、不申请权限；扫描噪声是 freesound 上的 CC0 真实磁共振录音（作者 parabolix，床电机 kedarda）
 
 ### 截图
 
@@ -57,7 +57,7 @@ Rehearse an MRI scan at home. Lying on your own bed (or sitting), a life-size MR
 - **Results**: stillness score, grade and a timeline marking each movement, then next level or retry
 - **Settings**: Bring back in front and Quit app first; Chinese / English, 60 / 70 cm bore, movement hints, head coil, skip the slide animation, three-step volume; mute is always visible and remembered; a How to page for hands and controller
 - Every page is in one system window (native tabs: Scan / How to / About / Settings), moved and closed with the system controls under it; in the bore a readout stays on the bore
-- Offline, no account, no permissions; the scan noise is synthesised
+- Offline, no account, no permissions; the scan noise is a CC0 recording of a real MRI scanner from freesound (by parabolix; bed motor by kedarda)
 
 Screenshots come from PICO Emulator 6.1 (High Definition graphics), jumped to each state by the debug broadcast — **not a recording of real hand input**. The demo video (`video-01.mp4` on the release, 51 s, silent) is also debug-driven and shows the round-1 build — **not real hand input**.
 
