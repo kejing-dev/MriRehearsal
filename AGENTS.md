@@ -11,7 +11,8 @@ then 30 s, 2 min and 5 min scans scored for stillness. Fully offline, no permiss
   own move / close / minimise controls under the window. No self-made drag bar, no panel drag code.
 - Design package: `spatial-app-factory/apps/mri-rehearsal/design-package.json` (rev 3, archetype C, 17 states, 14 interactions)
 - Reference repo: `moon-phases` (Stage manifest, HeadTracker, debug receiver, fonts, in-app language); controller
-  trigger from `dance-steps` / `bianzhong`; window template, LevelGate and recall from `too-much` / `pruning-class`
+  trigger from `dance-steps` / `bianzhong`; window template and recall from `too-much` / `pruning-class`; BACK / controller B handling (`platform/BackKeys`)
+  from `glow-bench` v0.1.3
 
 ## Build
 
@@ -27,7 +28,9 @@ signingConfig, no keystore in the repo; the store signs it). Offline release bui
 Unit tests (`app/src/test/...`): `DesignNumbersTest` (design U1–U11, level totals, slide paths incl. the v0.1.1 call
 back to park, panel orientation), `OcclusionTest` (q2-1 line-of-sight guard), `WindowLayoutTest` (one placement
 function for every window opening path, the window ≥ 10° from the gantry from either eye sitting / standing / lying,
-D9 upright window, the lying readout clear of the window, the level gate incl. the supine branch, volume steps).
+the window on the line of sight at any pitch, cold starts level / 30° down / 30° up with the gantry clear of the window,
+the lying readout clear of the window, volume steps), `BackKeysTest` (BACK / B once per press, other pad keys not BACK,
+BACK reopens a closed window and never exits).
 
 Assets: `python tools/make_icon.py …` (adaptive icon), `python -I tools/cut_cc0.py FFMPEG MRI_MP3 BED_MP3 WORK` (scan-room
 loops from the CC0 freesound recordings), `python tools/make_audio.py` (UI cues tick / call only),
@@ -37,19 +40,22 @@ loops from the CC0 freesound recordings), `python tools/make_audio.py` (UI cues 
 
 ```
 Main.kt                DefaultStage { MriScreen() } + WindowContainer("MriWindow", Planar) { MriWindow() }
-platform/              SpatialApplication, LaunchActivity, MriLog, MriGraph; HeadTracker (HMDTrackingProvider + debug offset),
+platform/              SpatialApplication (+ BACK guard on every Activity), LaunchActivity, MriLog, MriGraph, BackKeys
+                       (BACK / B caught in every window -> MriShared.onBack); HeadTracker (HMDTrackingProvider + debug offset),
                        ControllerInput (trigger held = call ball), ScanAudio (SoundPool: every bed loop + cues)
 domain/                MathKit, Stillness (judge + score), Plan (sequences, levels, run clock), Slide (world offset s),
                        Frame (posture judge, ScanFrame), RunEngine, UiState (screens, WindowPage, VolumeSteps),
-                       LevelGate (open the window only level / lying looking up), WindowLayout (THE placement function:
-                       where the window opens, the room laid out around it, the ≥ 10° check), Occlusion (q2-1)
-ui/MriShared.kt        process-level: the ViewModel, the window's lifecycle, the gate, recall = close → ON_DESTROY → open
+                       BackRule (what BACK does), WindowLayout (THE placement function: where the window opens, head
+                       pitch included, the room laid out around it, the ≥ 10° check), Occlusion (q2-1)
+ui/MriShared.kt        process-level: the ViewModel, the window's lifecycle, open (straight away), recall = close →
+                       ON_DESTROY → open, onBack (window closed = reopen, else nothing; never exits)
 ui/MriViewModel.kt     the state machine; 50 ms ticker drives the timeline; slide commands for the scene
 ui/MriScreen.kt        the Stage: SpatialView (room + the in-bore readout + the "open panel" chip), tap / hold gesture
 ui/window/             MainWindow (template: TabBar, exitApp), MriWindow (the four pages, settings, confirmations)
-ui/card/               CaptionStrip (the in-bore readout fixed on the bore), Chip, Common (Txt with OVERFLOW log, buttons)
+ui/card/               CaptionStrip (the in-bore readout fixed on the bore), Chip, Common (Txt with OVERFLOW log, buttons,
+                       all non-focusable), Keys (eatPadKeys: BACK / B to the handler, A / X / Y / ENTER / DPAD_CENTER eaten)
 scene/MriScene.kt      ECS: room, gantry (+ bore, strips, band), table, coil, call ball, window, tour highlight,
-                       the two Stage panels; onFrame(): gate step, slide, stillness sampling, panel placement, hit guard
+                       the two Stage panels; onFrame(): first-pose hand-over, slide, stillness sampling, panel placement, hit guard
 scene/SceneKit.kt      SDK helpers, MeshBuilder, programmatic meshes (gantry with rounded outline, bore, strips, band,
                        birdcage coil, sphere, rounded slabs for table / pillow / plinth, cylinders for hose / speaker)
 debug/                 DebugCommandReceiver + DebugHost (the QA broadcast)
@@ -59,16 +65,23 @@ Conventions: Stage metres; the scan frame's local axes are +Z = b (towards the f
 offset s ∈ [0, 1.8]: 0 = gantry parked (front face 1.0 m beyond the top of the head), 1.8 = head at the isocentre.
 All 2D UI is SpatialUI inside PicoTheme; no Material / Material3 imports (factory gate). Nothing aims with the head's
 forward: selection is the system pointer (controller ray / gaze + pinch); the head pose is the stillness input, the
-posture judge, the level gate and the placement origin (`apps/mri-rehearsal/build/headpose-audit.md`).
+posture judge and the placement origin (`apps/mri-rehearsal/build/headpose-audit.md`).
 
 ### Window and room (v0.1.1)
 
-- The window opens on the line of sight about 0.82 m away (system; the app cannot place it). Every open goes through
-  `MriShared.askOpen` → `LevelGate`: |pitch| ≤ 10° for 300 ms, or lying looking up (`WindowLayout.supineOk`); meanwhile
-  the Stage chip says "Look straight ahead — the panel opens" on the line of sight.
+- The window opens on the line of sight about 0.82 m away (system; the app cannot place it). Since versionCode 4 (QA #5
+  q5-1, profile D9 / D10) every open (`MriShared.askOpen`: Stage start, the "Open panel" chip, [Bring back in front],
+  BACK while closed) calls openWindowContainer straight away, whatever the head pitch; no level gate, no "look straight
+  ahead" card. An open that goes out before the first head pose takes the first valid pose as the one it opened at.
 - Sitting, the room is laid out around the window: the gantry stands 80° to the right of the direction the window
-  opened in (`WindowLayout.frameFor`), so the window's outline (+ TabBar above, system controls below) stays ≥ 10° clear
-  of it from both eyes. Lying, the window opens above the face and the gantry is beyond the top of the head.
+  opened in, or 95° (further if needed) when the window opened with the head tilted (`WindowLayout.gantryYawFor`: at
+  30° down / up the 80° gantry came within 10° of the window's outer corner), so the window's outline (+ TabBar above,
+  system controls below), at the pitch it opened at, stays ≥ 10° clear of it from both eyes. Lying looking up, the
+  window opens above the face and the gantry is beyond the top of the head.
+- BACK / controller B (q5-2, D60): caught at the earliest layer of every window (`platform/BackKeys`: Activity window
+  callbacks, every root view of the process incl. the TabBar's, the window's Compose root and each tab), one handler
+  `MriShared.onBack`: window closed = open it again, open (or opening) = nothing. Never exits, never goes to the
+  background. A / X / Y / ENTER / DPAD_CENTER are eaten in the window; no window control can take focus.
 - Every window open outside a run (S00–S03, S11) re-lays the room around the new window (`MriViewModel.onWindowOpened`).
   Inside a run the room stays; a call (S09) slides the world back to park, where the gantry clears the window again.
 - [Bring back in front] (Settings first screen, scan page S02): close → wait for ON_DESTROY → open (an open right
@@ -168,8 +181,8 @@ Within tolerance; see the design package for the original wording. v0.1.1 change
    where the user looks and only this keeps its outline ≥ 10° from the gantry. Turn right to face the bore.
 3. v0.1.1: a call slides the world all the way back to park (s = 0) at 0.45 m/s (≈ 4.5 s) instead of s − 1.0 (R2-1):
    only at park does the gantry clear the window that carries the pause page.
-4. v0.1.1: lying, the window may open above the face (LevelGate supine branch, design R1-1) — an explicit exception to
-   D9's "pitch 0", recorded in headpose-audit.md for the coordinator.
+4. v0.1.1: lying, the window opens above the face (design R1-1); since versionCode 4 every window opens at the head's
+   pitch straight away (profile D9 / D10, QA #5 q5-1) and the room is laid out clear of it.
 5. v0.1.1: volume has three steps 40 / 80 / 100 % (default 80 %), the table motor at the beds' level: sounding RMS
    −17.4 dBFS, peak −3.4 dBFS (rendered from the shipped assets, `qa/loudness-v0.1.1.wav`).
 6. Scan-room sounds (versionCode 3) are CC0 freesound recordings: a GE Signa MRI by parabolix (320532) and an electric

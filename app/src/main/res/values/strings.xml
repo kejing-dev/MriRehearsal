@@ -144,8 +144,6 @@
 
     <!-- the Stage chip while the main window is closed or waiting -->
     <string name="chip_open">Open panel</string>
-    <string name="chip_level">Look straight ahead —|the panel opens.</string>
-    <string name="chip_level_lie">Look straight ahead, or lie back|and look up — the panel opens.</string>
 
     <!-- How to (settings page "怎么操作", profile B19): each main action, hands and controller -->
     <string name="how_to_title">How to</string>

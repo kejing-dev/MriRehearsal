@@ -13,7 +13,11 @@ import com.pico.spatial.ui.design.Text
 import com.pico.spatial.ui.design.windows.TabBar
 import com.pico.spatial.ui.platform.ViewPoint
 import com.pico.spatial.ui.platform.containers.SpatialNavigator
+import androidx.compose.ui.platform.LocalFocusManager
+import io.embodit.mrirehearsal.platform.BackKeys
 import io.embodit.mrirehearsal.platform.MriLog
+import io.embodit.mrirehearsal.ui.card.NoFocus
+import io.embodit.mrirehearsal.ui.card.eatPadKeys
 import io.embodit.mrirehearsal.ui.MriShared
 import kotlin.system.exitProcess
 import kotlinx.coroutines.delay
@@ -42,17 +46,23 @@ class MainWindowPage(
 fun MainWindow(pages: List<MainWindowPage>, current: String, onSelect: (String) -> Unit) {
     require(pages.size in 1..7) { "TabBar holds at most 7 items" }
     val page = pages.firstOrNull { it.id == current } ?: pages.first()
-    // the window is sized for the tallest page (settings): pages fill it, no scrolling
-    Box(Modifier.fillMaxSize()) { page.content() }
+    val focus = LocalFocusManager.current
+    // the window is sized for the tallest page (settings): pages fill it, no scrolling. D60 (QA #5 q5-2): the root routes
+    // BACK / B to the one back handler and eats A / X / Y / ENTER / DPAD_CENTER (ui/card/Keys.kt)
+    Box(Modifier.fillMaxSize().eatPadKeys("window")) { page.content() }
     // system TabBar: its own small window outside this one (emulator 6.1.0: an icon capsule above the window). Labels and
     // accessibility names come from string resources in the app's language, resolved before they go in (gate tabbar-lang)
     TabBar(followViewpoints = setOf(ViewPoint.Front, ViewPoint.Left)) {
         pages.forEach { p ->
             item(
                 selected = page.id == p.id,
+                // q5-2 (D60): a tab never keeps focus, so BACK / controller B are not swallowed by it after a tap
+                modifier = NoFocus.eatPadKeys("tab"),
                 onClick = {
                     MriLog.i("TAB ${p.id}")
                     onSelect(p.id)
+                    focus.clearFocus(force = true)
+                    BackKeys.sweep("tab")
                 },
                 mainContent = { Icon(painter = painterResource(p.icon), contentDescription = p.label) },
                 supportContent = { Text(p.label) },

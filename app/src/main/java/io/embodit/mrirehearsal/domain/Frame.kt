@@ -40,8 +40,12 @@ class PostureJudge(start: Posture = Posture.SIT) {
  * - [up] world up; [right] the user's right hand (lying face up: b × up; sitting: up × b).
  *
  * Everything the room builds is laid out in this frame: axial coordinate along b, lateral along right, vertical up.
+ *
+ * [gantryYawDeg] (sitting): how far the frame was turned to the right of the window's direction
+ * (WindowLayout.gantryYawFor; 80 unless the window opened with a pitch that needed more room). The sitting coil turns
+ * back by it to face the window.
  */
-data class ScanFrame(val h0: V3, val b: V3, val posture: Posture) {
+data class ScanFrame(val h0: V3, val b: V3, val posture: Posture, val gantryYawDeg: Float = 80f) {
     val up: V3
         get() = V3.UP
 
@@ -70,7 +74,7 @@ data class ScanFrame(val h0: V3, val b: V3, val posture: Posture) {
          * `posture=lie` on the emulator, whose camera looks level — the head's forward stands in (b = forward),
          * so the geometry and the flow stay the same (design `verification`).
          */
-        fun from(position: V3, rotation: Q4, posture: Posture): ScanFrame {
+        fun from(position: V3, rotation: Q4, posture: Posture, gantryYawDeg: Float = 80f): ScanFrame {
             val f = rotation.forward.horizontal()
             val u = rotation.up.horizontal()
             val b =
@@ -78,7 +82,7 @@ data class ScanFrame(val h0: V3, val b: V3, val posture: Posture) {
                     Posture.LIE -> if (u.length > 0.3f) -u.normalized() else if (f.length > 1e-3f) f.normalized() else V3(0f, 0f, 1f)
                     Posture.SIT -> if (f.length > 1e-3f) -f.normalized() else if (u.length > 1e-3f) u.normalized() else V3(0f, 0f, 1f)
                 }
-            return ScanFrame(position, b, posture)
+            return ScanFrame(position, b, posture, gantryYawDeg)
         }
     }
 }

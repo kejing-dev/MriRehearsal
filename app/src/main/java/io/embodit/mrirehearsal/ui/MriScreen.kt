@@ -47,8 +47,8 @@ object PanelSizes {
 
 /**
  * The Stage (Full Space, Progressive): the scan room in one SpatialView, the in-bore readout and the "open panel"
- * chip. Every page of the app is in the main system window (`MriWindow`), which this screen opens — only with an
- * accepted head pose (LevelGate, D9) — closes for [Bring back in front], and restores. Moving and closing the window
+ * chip. Every page of the app is in the main system window (`MriWindow`), which this screen opens (straight away,
+ * whatever the head pitch: profile D9 / D10), closes for [Bring back in front], and restores. Moving and closing the window
  * are the system's own controls; nothing here drags a panel (D21).
  *
  * Input in the room: the system pointer (controller ray + trigger / gaze + pinch) on the room's and the tour's colliders.
@@ -64,7 +64,7 @@ fun MriScreen() {
     val scene = remember(vm) { MriScene(vm, MriGraph.head, MriGraph.controller) }
     val navigator = LocalSpatialNavigator.current
 
-    // the window's open / close / restore go through the navigator held here; every open waits for the head (MriShared)
+    // the window's open / close / restore go through the navigator held here (MriShared)
     DisposableEffect(navigator) {
         MriShared.opener = { navigator.openWindowContainer(MriShared.WINDOW_ID, MriShared.WINDOW_TAG) }
         MriShared.closer = { navigator.closeWindowContainer(MriShared.WINDOW_ID, MriShared.WINDOW_TAG) }
@@ -151,7 +151,7 @@ fun MriScreen() {
                     Gate(scene, PanelIds.CAPTION, PanelSizes.CAPTION) { CaptionStrip(state, vm) }
                 }
                 AttachmentPanel(PanelIds.CHIP) {
-                    Gate(scene, PanelIds.CHIP, PanelSizes.CHIP) { OpenPanelChip(lying = state.posture == Posture.LIE) }
+                    Gate(scene, PanelIds.CHIP, PanelSizes.CHIP) { OpenPanelChip() }
                 }
             },
             update = { _, attachments -> scene.bind(attachments) },

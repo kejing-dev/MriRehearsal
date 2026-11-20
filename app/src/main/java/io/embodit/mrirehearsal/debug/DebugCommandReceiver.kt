@@ -74,7 +74,7 @@ object DebugHost {
                         "open" -> MriShared.askOpen("debug")
                         "close" -> MriShared.closer?.invoke()
                         "recall" -> vm.recall("debug")
-                        else -> MriLog.i("CMD window open|close|recall  state=${MriShared.window} waiting=${MriShared.openWaiting} hint=${MriShared.levelHint}")
+                        else -> MriLog.i("CMD window open|close|recall  state=${MriShared.window} recallPending=${MriShared.recallPending}")
                     }
                 "reset" -> {
                     head.offset = V3.ZERO

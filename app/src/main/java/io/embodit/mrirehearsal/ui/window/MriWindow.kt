@@ -64,6 +64,7 @@ import io.embodit.mrirehearsal.domain.WindowPage
 import io.embodit.mrirehearsal.platform.MriLog
 import io.embodit.mrirehearsal.ui.MriShared
 import io.embodit.mrirehearsal.ui.MriViewModel
+import io.embodit.mrirehearsal.ui.card.NoFocus
 import io.embodit.mrirehearsal.ui.card.BUTTON_GAP
 import io.embodit.mrirehearsal.ui.card.BUTTON_H
 import io.embodit.mrirehearsal.ui.card.CaptionLine
@@ -237,7 +238,7 @@ private fun RoomPage(state: UiState, vm: MriViewModel) {
                         best == null -> str(R.string.best_none)
                         else -> str(R.string.best_fmt, grades[Score.grade(best).ordinal], best)
                     }
-                Button(onClick = { vm.selectLevel(level) }, modifier = Modifier.fillMaxWidth().heightIn(min = BUTTON_H)) {
+                Button(onClick = { vm.selectLevel(level) }, modifier = NoFocus.fillMaxWidth().heightIn(min = BUTTON_H)) {
                     Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                         Txt(levelName(level), style = PicoTheme.typography.titleMedium, modifier = Modifier.weight(1f))
                         // the button's own content colour: labelSecondary on the dark fill read 1.5:1 (emulator shot)
@@ -499,7 +500,7 @@ private fun SettingsPage(state: UiState, vm: MriViewModel) {
                     SegmentItem(
                         selected = s.language == option,
                         onClick = { vm.setLanguage(option) },
-                        modifier = Modifier.width(120.dp).height(MIN_TOUCH),
+                        modifier = NoFocus.width(120.dp).height(MIN_TOUCH),
                         // text in labelPrimary both ways: the unselected default grey measured 2.74:1 on the segment track
                         title = { Txt(if (option == AppLanguage.ZH) str(R.string.lang_zh) else str(R.string.lang_en), color = PicoTheme.colorScheme.labelPrimary) },
                     )
@@ -512,7 +513,7 @@ private fun SettingsPage(state: UiState, vm: MriViewModel) {
                     SegmentItem(
                         selected = s.boreCm == cm,
                         onClick = { vm.updateSettings { it.copy(boreCm = cm) } },
-                        modifier = Modifier.width(120.dp).height(MIN_TOUCH),
+                        modifier = NoFocus.width(120.dp).height(MIN_TOUCH),
                         title = { Txt(if (cm == 60) str(R.string.bore_60) else str(R.string.bore_70), color = PicoTheme.colorScheme.labelPrimary) },
                     )
                 }
@@ -558,9 +559,9 @@ private fun SettingRow(label: String, control: @Composable () -> Unit) {
 @Composable
 private fun SwitchRow(label: String, checked: Boolean, onChange: (Boolean) -> Unit) {
     val cur by rememberUpdatedState(onChange)
-    Row(modifier = Modifier.fillMaxWidth().height(MIN_TOUCH).clickable { cur(!checked) }, verticalAlignment = Alignment.CenterVertically) {
+    Row(modifier = NoFocus.fillMaxWidth().height(MIN_TOUCH).clickable { cur(!checked) }, verticalAlignment = Alignment.CenterVertically) {
         Txt(label, style = PicoTheme.typography.bodyLarge, color = PicoTheme.colorScheme.labelPrimary, modifier = Modifier.weight(1f))
-        Switch(checked = checked, onCheckedChange = { on -> cur(on) })
+        Switch(checked = checked, onCheckedChange = { on -> cur(on) }, modifier = NoFocus)
     }
 }
 
@@ -578,7 +579,7 @@ private fun VolumeSlider(value: Float, onSet: (Float) -> Unit) {
     if (!dragging.value && VolumeSteps.snap(local.floatValue) != VolumeSteps.snap(value)) local.floatValue = value
     Slider(
         value = local.floatValue,
-        modifier = Modifier.width(200.dp).height(48.dp),
+        modifier = NoFocus.width(200.dp).height(48.dp),
         onValueChange = { v ->
             dragging.value = true
             local.floatValue = v

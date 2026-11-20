@@ -16,14 +16,17 @@ object Gantry {
 
 /**
  * Where the main system window opens and where the scan room goes with it — the one placement function (factory
- * profile 48: launch, reopen and recall all call [place]; D9: [expectedWindow] is yaw-only while sitting).
+ * profile 48: launch, reopen, recall and BACK all call [place]).
  *
  * The SDK cannot place a Planar window: it opens on the line of sight, about [DIST_M] away (factory measurement, see
- * pico-cli-feedback "系统 Planar 窗口实际画出来…"), perpendicular to it, and stays where the user drags it. So the room is
- * laid out around the window instead (native-window-move §4): sitting, the gantry stands [GANTRY_YAW_SIT_DEG] to the
- * right of the window's direction; lying, the window opens above the face ([LevelGate] supine branch) and the gantry
- * stays beyond the top of the head. [separationDeg] is the D41 check: the window's outline with the system TabBar above
- * it and the system controls below it, seen from either eye, keeps ≥ [MIN_SEP_DEG] from the gantry's box.
+ * pico-cli-feedback, the Planar window size entry), perpendicular to it, and stays where the user drags it. Since
+ * v0.1.1 build 4 (QA #5 q5-1, profile D9 / D10: no waiting for a level head) every open goes out straight away, so
+ * [expectedWindow] is the window on the actual line of sight, head pitch included. The room is laid out around it
+ * (native-window-move §4): sitting, the gantry stands [GANTRY_YAW_SIT_DEG] to the right of the window's direction, or
+ * further if the window's outline at that pitch needs it ([gantryYawFor]); lying looking up, the window opens above the
+ * face and the gantry stays beyond the top of the head. [separationDeg] is the D41 check: the window's outline with the
+ * system TabBar above it and the system controls below it, seen from either eye, keeps >= [MIN_SEP_DEG] from the
+ * gantry's box.
  */
 object WindowLayout {
     /** Window size, dp: the tallest page (settings) fits without scrolling; ≤ 640 dp (factory D16). */
@@ -39,10 +42,13 @@ object WindowLayout {
     const val CONTROLS_DP = 80f
 
     const val GANTRY_YAW_SIT_DEG = 80f
+
+    /** Sitting gantry yaws tried, in order, when the window's outline (with its pitch) would come within [MIN_SEP_DEG]. */
+    val GANTRY_YAW_TRIES = floatArrayOf(80f, 95f, 110f, 125f, 140f, -80f, -95f, -110f, -125f, -140f, 160f, -160f, 180f)
     const val MIN_SEP_DEG = 10f
     const val IPD_M = 0.064f
 
-    /** Supine branch of the gate: looking up at least this much (forward·up ≥ cos 50°) ... */
+    /** Lying looking up: at least this much (forward·up ≥ cos 50°) ... */
     const val SUPINE_MIN_UP = 0.64f
 
     /** ... and tilted towards the top of the head by at most this much (beyond it the TabBar reaches the gantry). */
@@ -82,8 +88,9 @@ object WindowLayout {
     }
 
     /**
-     * The window the system will open for this head pose. Sitting: yaw-only (placeUpright, D9; the gate keeps the real
-     * pitch within ±10°). Lying (supine): above the face on the line of sight, its top towards the top of the head.
+     * The window the system opens for this head pose, on the actual line of sight (pitch included; the system window
+     * opens perpendicular to it): its up is world up made perpendicular to the line of sight. Lying looking up
+     * ([supineOk]): above the face, its top towards the top of the head.
      */
     fun expectedWindow(eye: V3, rotation: Q4, posture: Posture): WindowRect {
         if (posture == Posture.LIE && supineOk(rotation)) {
@@ -95,27 +102,56 @@ object WindowLayout {
             val toEye = -f
             return WindowRect(center, up.cross(toEye).normalized(), up)
         }
-        val f = yawForward(rotation)
-        return WindowRect(eye + f * DIST_M, f.cross(V3.UP).normalized(), V3.UP)
-    }
-
-    /** The scan room's frame for this head pose: sitting, the gantry turned [GANTRY_YAW_SIT_DEG] to the right. */
-    fun frameFor(eye: V3, rotation: Q4, posture: Posture): ScanFrame =
-        if (posture == Posture.SIT) ScanFrame.from(eye, (Q4.axisAngle(V3.UP, -GANTRY_YAW_SIT_DEG) * rotation).normalized(), Posture.SIT)
-        else ScanFrame.from(eye, rotation, Posture.LIE)
-
-    /** The one placement function: the window the system opens now and the room laid out around it. */
-    fun place(eye: V3, rotation: Q4, posture: Posture): Placement = Placement(expectedWindow(eye, rotation, posture), frameFor(eye, rotation, posture))
-
-    /** A real window centred on the actual line of sight (the gate lets the pitch be up to ±10°), for the tests. */
-    fun actualWindow(eye: V3, rotation: Q4, posture: Posture): WindowRect {
-        if (posture == Posture.LIE && supineOk(rotation)) return expectedWindow(eye, rotation, posture)
         val f = rotation.forward.normalized()
         var up = V3.UP - f * f.y
+        // looking (almost) straight up or down: the head's up stands in
+        if (up.length < 0.2f) up = rotation.up - f * rotation.up.dot(f)
+        if (up.length < 1e-3f) up = V3.AHEAD
         up = up.normalized()
         val toEye = -f
         return WindowRect(eye + f * DIST_M, up.cross(toEye).normalized(), up)
     }
+
+    /** The sitting frame turned [yawDeg] to the right of the window's direction [rotation]. */
+    private fun sitFrame(eye: V3, rotation: Q4, yawDeg: Float): ScanFrame =
+        ScanFrame.from(eye, (Q4.axisAngle(V3.UP, -yawDeg) * rotation).normalized(), Posture.SIT, yawDeg)
+
+    /**
+     * Sitting: the first of [GANTRY_YAW_TRIES] (80 degrees right first) at which the gantry at park keeps [MIN_SEP_DEG]
+     * from the [window]'s outline from both eyes (q5-1: the window opens at whatever pitch the head has). If none does,
+     * the best one.
+     */
+    fun gantryYawFor(eye: V3, rotation: Q4, window: WindowRect): Float {
+        val o = outline(window)
+        var best = GANTRY_YAW_SIT_DEG
+        var bestSep = -1f
+        for (y in GANTRY_YAW_TRIES) {
+            val sep = separationBothEyesDeg(eye, rotation, o, gantryBox(sitFrame(eye, rotation, y), 0f))
+            if (sep >= MIN_SEP_DEG) return y
+            if (sep > bestSep) {
+                bestSep = sep
+                best = y
+            }
+        }
+        return best
+    }
+
+    /**
+     * The scan room's frame for this head pose: sitting, the gantry turned [gantryYawFor] to the right of the window's
+     * direction ([window]: the one that opened, else the one this pose would open); lying, from the head's up.
+     */
+    fun frameFor(eye: V3, rotation: Q4, posture: Posture, window: WindowRect? = null): ScanFrame =
+        if (posture == Posture.SIT) sitFrame(eye, rotation, gantryYawFor(eye, rotation, window ?: expectedWindow(eye, rotation, Posture.SIT)))
+        else ScanFrame.from(eye, rotation, Posture.LIE)
+
+    /** The one placement function: the window the system opens now and the room laid out around it. */
+    fun place(eye: V3, rotation: Q4, posture: Posture): Placement {
+        val w = expectedWindow(eye, rotation, posture)
+        return Placement(w, frameFor(eye, rotation, posture, w))
+    }
+
+    /** The window on the actual line of sight (the same as [expectedWindow] since every open goes out at once). */
+    fun actualWindow(eye: V3, rotation: Q4, posture: Posture): WindowRect = expectedWindow(eye, rotation, posture)
 
     /** Four corners of the window grown by the TabBar above and the system controls below (metres, world). */
     fun outline(w: WindowRect): List<V3> {

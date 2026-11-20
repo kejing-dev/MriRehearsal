@@ -82,7 +82,7 @@ private object OverflowSeen {
 fun PrimaryButton(label: String, onClick: () -> Unit, modifier: Modifier = Modifier, icon: Int? = null, height: Dp = BUTTON_H, enabled: Boolean = true) {
     Button(
         onClick = onClick,
-        modifier = modifier.heightIn(min = height),
+        modifier = modifier.then(NoFocus).heightIn(min = height),
         enabled = enabled,
         colors = ButtonDefaults.buttonColors(containerColor = io.embodit.mrirehearsal.ui.theme.MriColors.PrimaryFill, contentColor = Color.White),
     ) {
@@ -92,7 +92,7 @@ fun PrimaryButton(label: String, onClick: () -> Unit, modifier: Modifier = Modif
 
 @Composable
 fun SecondaryButton(label: String, onClick: () -> Unit, modifier: Modifier = Modifier, icon: Int? = null, height: Dp = BUTTON_H, enabled: Boolean = true) {
-    Button(onClick = onClick, modifier = modifier.heightIn(min = height), enabled = enabled) { ButtonLabel(label, icon) }
+    Button(onClick = onClick, modifier = modifier.then(NoFocus).heightIn(min = height), enabled = enabled) { ButtonLabel(label, icon) }
 }
 
 @Composable
@@ -110,7 +110,7 @@ fun LabeledIconButton(icon: Int, label: String, onClick: () -> Unit, modifier: M
 
 @Composable
 fun LinkText(label: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
-    Link(onClick = onClick, modifier = modifier.heightIn(min = MIN_TOUCH)) { Txt(label, color = io.embodit.mrirehearsal.ui.theme.MriColors.LinkOnGlass) }
+    Link(onClick = onClick, modifier = modifier.then(NoFocus).heightIn(min = MIN_TOUCH)) { Txt(label, color = io.embodit.mrirehearsal.ui.theme.MriColors.LinkOnGlass) }
 }
 
 /** A status line: a small coloured dot carries the colour, the text stays labelPrimary (D13: coloured text failed on light glass). */

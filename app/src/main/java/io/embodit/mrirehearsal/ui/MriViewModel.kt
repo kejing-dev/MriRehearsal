@@ -34,6 +34,7 @@ import io.embodit.mrirehearsal.domain.WindowLayout
 import io.embodit.mrirehearsal.domain.WindowPage
 import io.embodit.mrirehearsal.domain.lastAfterGap
 import io.embodit.mrirehearsal.domain.nextLoudness
+import io.embodit.mrirehearsal.platform.HeadPose
 import io.embodit.mrirehearsal.platform.MriGraph
 import io.embodit.mrirehearsal.platform.MriLog
 import io.embodit.mrirehearsal.platform.ScanAudio
@@ -497,16 +498,38 @@ class MriViewModel(app: Application) : AndroidViewModel(app) {
      */
     fun onWindowOpened(why: String) {
         val pose = head.last
-        windowRotation = pose?.rotation
-        // the gate opened it either level (upright, yaw only) or lying looking up (above the face)
-        windowRect = pose?.let { p ->
-            val lying = kotlin.math.abs(WindowLayout.pitchDeg(p.rotation)) > 10f && WindowLayout.supineOk(p.rotation)
-            WindowLayout.expectedWindow(p.position, p.rotation, if (lying) Posture.LIE else Posture.SIT)
+        if (pose == null) {
+            // cold start: the open goes out before the first head pose; the scene hands that pose over (onWindowPose)
+            windowPosePending = true
+            windowRotation = null
+            windowRect = null
+            MriLog.i("WINDOW opened why=$why screen=${_state.value.screen} pose=pending")
+            return
         }
+        takeWindowPose(pose, why)
+    }
+
+    /** An open went out before the first valid head pose: the scene's first one stands for the pose it opened at. */
+    @Volatile var windowPosePending = false
+        private set
+
+    fun onWindowPose(pose: HeadPose) =
+        main.post {
+            if (!windowPosePending) return@post
+            windowPosePending = false
+            takeWindowPose(pose, "first-pose")
+        }
+
+    private fun takeWindowPose(pose: HeadPose, why: String) {
+        windowPosePending = false
+        windowRotation = pose.rotation
+        // q5-1: the window opens on the line of sight at whatever pitch the head has (upright, or above the face lying
+        // looking up); the room is laid out clear of it (WindowLayout.frameFor with this rect)
+        windowRect = WindowLayout.expectedWindow(pose.position, pose.rotation, if (WindowLayout.supineOk(pose.rotation)) Posture.LIE else Posture.SIT)
         val s = _state.value
         val relay = relaysOnOpen(s.screen)
         if (relay) recenter()
-        MriLog.i("WINDOW opened why=$why screen=${s.screen} relaid=$relay pitch=${pose?.let { "%.1f".format(WindowLayout.pitchDeg(it.rotation)) }}")
+        MriLog.i("WINDOW opened why=$why screen=${s.screen} relaid=$relay pitch=${"%.1f".format(WindowLayout.pitchDeg(pose.rotation))}")
     }
 
     /** A TabBar page (S12 settings, S13 about are pages; the scan goes on underneath). */

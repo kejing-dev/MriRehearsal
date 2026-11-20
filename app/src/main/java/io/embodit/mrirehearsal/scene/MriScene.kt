@@ -32,6 +32,7 @@ import io.embodit.mrirehearsal.domain.V3
 import io.embodit.mrirehearsal.domain.WindowLayout
 import io.embodit.mrirehearsal.domain.toRad
 import io.embodit.mrirehearsal.platform.ControllerInput
+import io.embodit.mrirehearsal.platform.BackKeys
 import io.embodit.mrirehearsal.platform.HeadPose
 import io.embodit.mrirehearsal.platform.HeadTracker
 import io.embodit.mrirehearsal.platform.MriLog
@@ -524,18 +525,16 @@ class MriScene(private val vm: MriViewModel, private val head: HeadTracker, priv
         val dt = if (deltaTime.isFinite() && deltaTime > 0f) deltaTime.coerceAtMost(0.1f) else 0.016f
         frame++
         val now = SystemClock.elapsedRealtime()
+        // D60 (q5-2): roots added after the Activity events (panels, TabBar, system window pieces) get the BACK hook too
+        BackKeys.sweepSoon("frame")
         runMeshWork(if (deltaTime.isFinite() && deltaTime > 0f) deltaTime else 1f, now)
         attachments?.let { if (slots.values.any { s -> s.panel == null }) bind(it) }
         if (paused) return
         val pose = head.pose()
-        val state0 = vm.state.value
-        // every window open waits for an accepted head pose (D9; LevelGate, native-window-move §7 item 9)
-        if (pose == null) {
-            MriShared.stepGate(now, null, false)
-            return
-        }
-        val supine = WindowLayout.supineOk(pose.rotation) && (state0.posture == Posture.LIE || !state0.postureManual)
-        MriShared.stepGate(now, WindowLayout.pitchDeg(pose.rotation), supine)
+        // the window opens straight away whatever the head pitch (profile D9 改 / D10, QA #5 q5-1); an open that went out
+        // before the first valid head pose takes this one as the pose it opened for (the room is laid out clear of it)
+        if (pose == null) return
+        if (vm.windowPosePending) vm.onWindowPose(pose)
         if (!headReported) {
             headReported = true
             vm.onHeadFound()
@@ -566,8 +565,15 @@ class MriScene(private val vm: MriViewModel, private val head: HeadTracker, priv
         if (state.frameEpoch != frameEpoch || scanFrame == null) {
             frameEpoch = state.frameEpoch
             val around = if (state.posture == Posture.SIT) vm.windowRotation ?: pose.rotation else pose.rotation
-            scanFrame = WindowLayout.frameFor(pose.position, around, state.posture)
-            MriLog.i("SCENE frame h0=${scanFrame?.h0} b=${scanFrame?.b} posture=${state.posture} aroundWindow=${vm.windowRotation != null}")
+            val win = vm.windowRect
+            val fr = WindowLayout.frameFor(pose.position, around, state.posture, win)
+            scanFrame = fr
+            // q5-1: the window's outline (with the head pitch it opened at) against the gantry at park, both eyes
+            val sep = win?.let { WindowLayout.separationBothEyesDeg(pose.position, around, WindowLayout.outline(it), WindowLayout.gantryBox(fr, 0f)) }
+            MriLog.i(
+                "SCENE frame h0=${fr.h0} b=${fr.b} posture=${state.posture} aroundWindow=${vm.windowRotation != null} gantryYaw=${fr.gantryYawDeg} " +
+                    "windowPitch=${"%.1f".format(WindowLayout.pitchDeg(around))} sepDeg=${sep?.let { "%.1f".format(it) } ?: "-"}",
+            )
         }
         val f = scanFrame ?: return
         if (layoutPosture != f.posture) layout(f)
@@ -640,7 +646,7 @@ class MriScene(private val vm: MriViewModel, private val head: HeadTracker, priv
         val facesWindow = f.posture == Posture.SIT && !(state.screen.inRun || state.screen == Screen.S09 || state.screen == Screen.S10)
         if (facesWindow != coilFacesWindow || layoutPosture == null) {
             coilFacesWindow = facesWindow
-            if (f.posture == Posture.SIT) coil?.setLocal(position = V3(0f, 0f, 0.06f), rotation = sittingCoil(facesWindow))
+            if (f.posture == Posture.SIT) coil?.setLocal(position = V3(0f, 0f, 0.06f), rotation = sittingCoil(facesWindow, f.gantryYawDeg))
         }
 
         placePanels(state, pose, f)
@@ -709,11 +715,12 @@ class MriScene(private val vm: MriViewModel, private val head: HeadTracker, priv
 
     /**
      * Sitting coil: axis vertical, open face towards the gantry (−b); [towardsWindow] turns it left by the gantry's
-     * offset, so the face is open towards the window (WindowLayout.GANTRY_YAW_SIT_DEG).
+     * offset, so the face is open towards the window ([gantryYawDeg]: WindowLayout.GANTRY_YAW_SIT_DEG unless the window
+     * placement had to turn the gantry further, WindowLayout.gantryYawFor).
      */
-    private fun sittingCoil(towardsWindow: Boolean): Q4 {
+    private fun sittingCoil(towardsWindow: Boolean, gantryYawDeg: Float): Q4 {
         val axisUp = Q4.axisAngle(V3.RIGHT, -90f)
-        return if (towardsWindow) (Q4.axisAngle(V3.UP, WindowLayout.GANTRY_YAW_SIT_DEG) * axisUp).normalized() else axisUp
+        return if (towardsWindow) (Q4.axisAngle(V3.UP, gantryYawDeg) * axisUp).normalized() else axisUp
     }
 
     /** Positions that depend only on the frame's posture (room heights, table, coil axis). */
@@ -757,7 +764,7 @@ class MriScene(private val vm: MriViewModel, private val head: HeadTracker, priv
             coil?.setLocal(position = V3(0f, -0.06f, 0f), rotation = Q4.IDENTITY)
         } else {
             ball?.setLocal(position = V3(rs * 0.18f, -0.55f, -0.25f), scale = V3(BALL_R, BALL_R, BALL_R))
-            coil?.setLocal(position = V3(0f, 0f, 0.06f), rotation = sittingCoil(coilFacesWindow == true))
+            coil?.setLocal(position = V3(0f, 0f, 0.06f), rotation = sittingCoil(coilFacesWindow == true, f.gantryYawDeg))
         }
         MriLog.i("SCENE layout posture=${f.posture} floorY=$floorY")
     }
@@ -782,9 +789,9 @@ class MriScene(private val vm: MriViewModel, private val head: HeadTracker, priv
 
     private fun placePanels(state: UiState, pose: HeadPose, f: ScanFrame) {
         val screen = state.screen
-        // the chip: "open panel" while the window is closed, "look straight ahead" while an open waits for the head (D9);
-        // placed once per appearance in front of the head (yaw only, lying: above the face), never followed
-        val chipOn = MriShared.levelHint || MriShared.windowClosed
+        // the chip: "open panel" while the window is closed (a button that opens it, D10); placed once per appearance in
+        // front of the head (yaw only, lying: above the face), never followed
+        val chipOn = MriShared.windowClosed
         if (chipOn) {
             if (!chipShownLast || chipPos == null || state.cardEpoch != cardEpoch) {
                 cardEpoch = state.cardEpoch
@@ -815,7 +822,7 @@ class MriScene(private val vm: MriViewModel, private val head: HeadTracker, priv
     }
 
     /**
-     * The chip on the line of sight (native-window-move §7 item 9: the hint has to be seen while the head is tilted):
+     * The chip on the line of sight (it has to be seen wherever the head is tilted when the window is closed):
      * sitting, at the head's pitch − 12°, clamped to ±40°, 0.75 m, upright and turned by yaw only (D9); lying, above
      * the face like the old cards (design R1-1).
      */

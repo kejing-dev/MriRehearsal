@@ -1,6 +1,5 @@
 package io.embodit.mrirehearsal
 
-import io.embodit.mrirehearsal.domain.LevelGate
 import io.embodit.mrirehearsal.domain.Posture
 import io.embodit.mrirehearsal.domain.Q4
 import io.embodit.mrirehearsal.domain.Screen
@@ -15,14 +14,15 @@ import kotlin.math.acos
 import kotlin.math.atan2
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * The main window and the scanner (v0.1.1): one placement function for every opening path (factory profile 48), the
- * window yaw-only while sitting (D9), the window's outline with its TabBar and system controls ≥ 10° from the gantry
- * from either eye (D41 / D35 corner projection, sit 1.2 m and stand 1.6 m eye heights, lying), and the level gate.
+ * The main window and the scanner (v0.1.1 build 4): one placement function for every opening path (factory profile
+ * 48). The window opens straight away on the actual line of sight, head pitch included (QA #5 q5-1, profile D9 / D10:
+ * no level gate), and the room is laid out clear of it: the window's outline with its TabBar and system controls
+ * >= 10 degrees from the gantry from either eye (D41 / D35 corner projection, sit 1.2 m and stand 1.6 m eye heights,
+ * head level / 30 degrees down / 30 degrees up, lying).
  */
 class WindowLayoutTest {
     private fun head(yawDeg: Float, pitchDeg: Float = 0f, rollDeg: Float = 0f): Q4 =
@@ -42,7 +42,7 @@ class WindowLayoutTest {
 
     @Test
     fun launch_windowClearsTheGantryByTenDegrees_sitAndStand() {
-        for (eyeY in listOf(1.2f, 1.6f)) for (yaw in listOf(0f, 37f, -120f)) for (pitch in listOf(-10f, 0f, 10f)) {
+        for (eyeY in listOf(1.2f, 1.6f)) for (yaw in listOf(0f, 37f, -120f)) for (pitch in listOf(-40f, -30f, -10f, 0f, 10f, 30f, 40f)) {
             val eye = V3(0.3f, eyeY, -0.2f)
             val rot = head(yaw, pitch)
             val sep = sepAtPark(eye, rot, Posture.SIT)
@@ -82,7 +82,8 @@ class WindowLayoutTest {
             val sep = sepAtPark(eye, rot, Posture.LIE)
             assertTrue("lying tilt=$tilt sep=$sep", sep >= WindowLayout.MIN_SEP_DEG)
         }
-        // looking back over the head (towards the gantry) is not a supine pose: the gate waits
+        // looking back over the head (towards the gantry) is not a supine pose: the window opens upright on that line of
+        // sight (no gate any more, q5-1)
         assertFalse(WindowLayout.supineOk(lying(-15f)))
         // sitting upright is not supine either
         assertFalse(WindowLayout.supineOk(head(0f, 30f)))
@@ -98,27 +99,70 @@ class WindowLayoutTest {
         assertTrue(sepAtPark(V3(0f, 0.75f, 0f), lying(), Posture.LIE) >= WindowLayout.MIN_SEP_DEG)
     }
 
-    // ---- D9: yaw only while sitting ---------------------------------------------------------------------------
+    // ---- q5-1: the window opens on the line of sight at any pitch, the gantry clears it --------------------------
 
     @Test
-    fun sittingWindowIsUprightForAnyHeadTilt() {
+    fun windowOpensOnTheLineOfSightAtAnyPitch() {
         val eye = V3(0f, 1.3f, 0f)
-        for ((pitch, roll) in listOf(-30f to 0f, 30f to 0f, 0f to 20f, -10f to 15f)) {
-            val w = WindowLayout.expectedWindow(eye, head(25f, pitch, roll), Posture.SIT)
-            val upErr = acos(w.up.dot(V3.UP).coerceIn(-1f, 1f)).toDeg()
-            assertTrue("pitch=$pitch roll=$roll up err=$upErr", upErr < 1f)
-            assertEquals(eye.y, w.center.y, 1e-4f) // centre at eye height (no pitch)
+        for ((pitch, roll) in listOf(-30f to 0f, 30f to 0f, 0f to 20f, -10f to 15f, -60f to 0f, 60f to 0f)) {
+            val rot = head(25f, pitch, roll)
+            val w = WindowLayout.expectedWindow(eye, rot, Posture.SIT)
+            val f = rot.forward.normalized()
             assertEquals(WindowLayout.DIST_M, (w.center - eye).length, 1e-3f)
-            // faces the eye, not mirrored: right x up = towards the eye
-            assertTrue(w.normal.dot((eye - w.center).normalized()) > 0.999f)
+            // centred on the line of sight, perpendicular to it, facing the eye (not mirrored)
+            assertTrue("pitch=$pitch centre off the line of sight", (w.center - eye).normalized().dot(f) > 0.9999f)
+            assertTrue("pitch=$pitch roll=$roll faces the eye", w.normal.dot((eye - w.center).normalized()) > 0.999f)
+            // no roll: its right edge stays level, its up leans back with the pitch only
+            assertEquals("pitch=$pitch roll=$roll right level", 0f, w.right.y, 1e-4f)
+            assertEquals(0f, w.up.dot(f), 1e-4f)
         }
+    }
+
+    /** QA #5 q5-1 cold starts: head level, 30 deg down, 30 deg up; the window opens there and the room goes around it. */
+    @Test
+    fun coldStartLevelDownUp30_gantryClearOfTheWindow_andRoomComesInFrontAgain() {
+        for (eyeY in listOf(1.2f, 1.6f)) for (pitch in listOf(0f, -30f, 30f)) {
+            val eye = V3(0f, eyeY, 0f)
+            val rot = head(0f, pitch)
+            val p = WindowLayout.place(eye, rot, Posture.SIT)
+            val box = WindowLayout.gantryBox(p.frame, 0f)
+            val sep = WindowLayout.separationBothEyesDeg(eye, rot, WindowLayout.outline(p.window), box)
+            assertTrue("cold start eyeY=$eyeY pitch=$pitch sep=$sep", sep >= WindowLayout.MIN_SEP_DEG)
+            // the window itself is where the head looks: every outline corner within the 39 deg default view
+            assertTrue(WindowLayout.maxCornerOffAxisDeg(eye, rot, WindowLayout.outline(p.window)) <= 39f)
+            // the gantry box is never between the eye and any point of the window (it cannot cover the window, nor the window it)
+            assertTrue(sep > 0f)
+        }
+    }
+
+    @Test
+    fun gantryTurnsFurtherOnlyWhenTheWindowNeedsIt() {
+        val eye = V3(0f, 1.2f, 0f)
+        // the design's 80 deg is kept with the head level ...
+        for (pitch in listOf(0f, -10f, 10f)) assertEquals("pitch=$pitch", WindowLayout.GANTRY_YAW_SIT_DEG, WindowLayout.frameFor(eye, head(0f, pitch), Posture.SIT).gantryYawDeg, 0f)
+        // ... with the head 30 deg down or up (the window's outer corner comes within 10 deg of the gantry at 80 deg) or
+        // further, the room turns further and clears it
+        for (pitch in listOf(-30f, 30f, -60f, 60f)) {
+            val r = head(0f, pitch)
+            val f = WindowLayout.frameFor(eye, r, Posture.SIT)
+            val sep = WindowLayout.separationBothEyesDeg(eye, r, WindowLayout.outline(WindowLayout.expectedWindow(eye, r, Posture.SIT)), WindowLayout.gantryBox(f, 0f))
+            println("AUDIT | sit 1.2 m | pitch ${pitch.toInt()} | gantry yaw ${f.gantryYawDeg} | sep %.1f |".format(sep))
+            assertTrue("pitch=$pitch sep=$sep", sep >= WindowLayout.MIN_SEP_DEG)
+        }
+        // a window that was dragged towards the gantry and then reopened there: the room turns further (or the other way)
+        val rot = head(0f)
+        val towards = head(-70f) // the window sits 70 deg right, where the 80 deg gantry would be
+        val w = WindowLayout.expectedWindow(eye, towards, Posture.SIT)
+        val f = WindowLayout.frameFor(eye, rot, Posture.SIT, w)
+        assertTrue("turned ${f.gantryYawDeg}", f.gantryYawDeg != WindowLayout.GANTRY_YAW_SIT_DEG)
+        assertTrue(WindowLayout.separationBothEyesDeg(eye, rot, WindowLayout.outline(w), WindowLayout.gantryBox(f, 0f)) >= WindowLayout.MIN_SEP_DEG)
     }
 
     @Test
     fun windowOutlineStaysInTheDefaultView() {
         // every corner of the window + TabBar + system controls within 39 deg of the line of sight (D14 / D35)
         val eye = V3(0f, 1.2f, 0f)
-        for (pitch in listOf(-10f, 0f, 10f)) {
+        for (pitch in listOf(-30f, -10f, 0f, 10f, 30f)) {
             val rot = head(0f, pitch)
             val o = WindowLayout.outline(WindowLayout.actualWindow(eye, rot, Posture.SIT))
             assertTrue("pitch=$pitch", WindowLayout.maxCornerOffAxisDeg(eye, rot, o) <= 39f)
@@ -150,7 +194,7 @@ class WindowLayoutTest {
     fun auditTable() {
         val rows = ArrayList<String>()
         for ((label, eye) in listOf("sit 1.2 m" to V3(0f, 1.2f, 0f), "stand 1.6 m" to V3(0f, 1.6f, 0f))) {
-            for (turn in listOf(0f, 90f, 180f)) for (pitch in listOf(-10f, 0f, 10f)) {
+            for (turn in listOf(0f, 90f, 180f)) for (pitch in listOf(-30f, 0f, 30f)) {
                 val rot = head(-turn, pitch) // turned right by [turn], the window (re)opened there, the room re-laid
                 val sep = sepAtPark(eye, rot, Posture.SIT)
                 val off = WindowLayout.maxCornerOffAxisDeg(eye, rot, WindowLayout.outline(WindowLayout.actualWindow(eye, rot, Posture.SIT)))
@@ -168,40 +212,6 @@ class WindowLayoutTest {
         }
         println("AUDIT | eye | head when the window opened | window outline to gantry, min of both eyes (deg) | farthest outline corner from the line of sight (deg) |")
         rows.forEach { println("AUDIT $it") }
-    }
-
-    // ---- the level gate -----------------------------------------------------------------------------------------
-
-    @Test
-    fun gateOpensLevelAfterDwell_waitsWhileTilted_showsTheHint() {
-        val g = LevelGate()
-        g.ask("stage", 0L)
-        assertNull(g.step(0L, -30f))
-        assertTrue(g.hintWanted(-30f))
-        assertNull(g.step(100L, 3f))
-        assertNull(g.step(300L, 3f))
-        assertEquals("stage", g.step(400L, 2f))
-        assertFalse(g.waiting)
-    }
-
-    @Test
-    fun gateOpensForASupineUserOnly() {
-        val g = LevelGate()
-        g.ask("recall", 0L)
-        assertNull(g.step(0L, 80f, supine = false))
-        assertTrue(g.hintWanted(80f, supine = false))
-        assertFalse(g.hintWanted(80f, supine = true))
-        assertNull(g.step(10L, 80f, supine = true))
-        assertEquals("recall/supine", g.step(400L, 82f, supine = true))
-    }
-
-    @Test
-    fun gateWithoutHeadOpensAfterFiveSecondsCountedFromTheFirstFrame() {
-        val g = LevelGate()
-        g.ask("stage", 0L)
-        assertNull(g.step(6_000L, null))
-        assertNull(g.step(10_000L, null))
-        assertEquals("stage/nohead", g.step(11_000L, null))
     }
 
     // ---- volume (B20): three steps ------------------------------------------------------------------------------

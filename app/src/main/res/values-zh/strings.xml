@@ -141,8 +141,6 @@
     <string name="next_fmt">下一个 (%1$d/%2$d)</string>
 
     <string name="chip_open">打开面板</string>
-    <string name="chip_level">平视前方，|面板就出来。</string>
-    <string name="chip_level_lie">平视前方，或躺平看天花板，|面板就出来。</string>
 
     <string name="how_to_title">怎么操作</string>
     <string name="how_to_hands_line">手势：%1$s</string>
