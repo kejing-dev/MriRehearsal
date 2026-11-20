@@ -1,9 +1,28 @@
 # 磁共振预习 MRI Rehearsal
 
-> **v0.1.1 开发中（原生系统窗口 + 页签），待 QA；最新预发布是 v0.1.0。** v0.1.1 in development (native system window + TabBar), awaiting QA; the latest pre-release is v0.1.0.
+> **v0.1.1 预发布：模拟器 QA 通过，真机未验证。** v0.1.1 pre-release: passed emulator QA, not yet verified on a headset.
 >
 > 这是一个预习练习，**不是医疗器械**；扫描当天请以医院和技师的指引为准。
 > This is a rehearsal, **not a medical device**; on the day, follow your hospital's instructions.
+
+## 安装 / Install
+
+从 [Release v0.1.1](https://github.com/kejing-dev/MriRehearsal/releases/tag/v0.1.1) 下载 `mri-rehearsal-v0.1.1-debug.apk`，连上头显后：
+Download `mri-rehearsal-v0.1.1-debug.apk` from [Release v0.1.1](https://github.com/kejing-dev/MriRehearsal/releases/tag/v0.1.1), connect the headset, then:
+
+```bash
+adb install -r mri-rehearsal-v0.1.1-debug.apk
+pico-cli app launch io.embodit.mrirehearsal
+```
+
+头显上如果装过别的电脑签名的旧版，`install -r` 会报 `INSTALL_FAILED_UPDATE_INCOMPATIBLE`，先 `adb uninstall io.embodit.mrirehearsal` 再装。
+If an older build signed on another computer is installed, `install -r` fails with `INSTALL_FAILED_UPDATE_INCOMPATIBLE`; run `adb uninstall io.embodit.mrirehearsal` first.
+
+Release 上另有 `MriRehearsal-v0.1.1-unsigned.apk`（assembleRelease 未签名包，给 Vibe Lab 上架用，不能直接装）。debug 包**仅头显调试安装，勿上传 Vibe Lab**。
+The release also has `MriRehearsal-v0.1.1-unsigned.apk` (unsigned assembleRelease build for the Vibe Lab listing; it cannot be installed as is). The debug APK is **for headset debugging only; do not upload it to Vibe Lab**.
+
+需要 PICO OS 6（Spatial SDK 6.1.9），Full Space（Progressive，沉浸度 100 / 40 / 100）。
+Requires PICO OS 6 (Spatial SDK 6.1.9); Full Space (Progressive, immersion 100 / 40 / 100).
 
 <p align="center"><img src="docs/poster.jpg" alt="磁共振预习 MRI Rehearsal" width="800"></p>
 
@@ -11,73 +30,83 @@
 
 做磁共振之前，先在家练一遍。躺在自己床上（或坐着），一台 1:1 的磁共振机把你滑进 60 cm 的孔洞，扫描噪声响起，头显量你的头动了几毫米、几度。先认识扫描室，再按 30 秒 → 2 分钟 → 5 分钟三关，练到一动不动。
 
-- **认识扫描室**：机架、孔洞、头线圈、呼叫球和技师窗依次亮起，面板一站一站讲清楚
+- **认识扫描室**：机架、孔洞、头线圈、呼叫球和技师窗依次亮起，窗口一站一站讲清楚
 - **三关练静止**：入舱滑入 → 定位倒计时 → 几段扫描序列（中间有间歇，字幕提前说「下一段更响 / 差不多 / 轻一点」）
-- **随时呼叫技师**：捏住 0.4 秒（或手柄扳机按住），扫描停、台子滑出，面板给「继续扫描 / 重来这一关 / 出舱结束」
+- **随时呼叫技师**：捏住 0.4 秒（或手柄扳机按住），扫描停、台子滑出，给「继续扫描 / 重来这一关 / 出舱结束」
 - **结果**：静止分 + 等级 + 时间线标出动的那几下，给下一关或再来一次
-- **设置**：首屏「叫回面前」「退出应用」；中英文、孔径 60 / 70 cm、动了提醒、头线圈、跳过进出动画、三档音量；静音一眼可见并记住；「怎么操作」页写清手势和手柄的做法
-- 所有界面在一个系统窗口里（原生页签：扫描 / 怎么操作 / 关于 / 设置），用窗口下方的系统控件拖动、关闭；扫描时孔洞里另有一条读数
-- 不联网、不需要账号、不申请权限；扫描噪声是 freesound 上的 CC0 真实磁共振录音（作者 parabolix，床电机 kedarda）
+- **一个系统窗口**：原生页签（扫描 / 怎么操作 / 关于 / 设置），用窗口下方的系统控件拖动、关闭；关掉后点场景里的「打开面板」小牌、或按返回键 / 手柄 B 重新打开
+- **设置**：叫回面前、退出应用；中英文、孔径 60 / 70 cm、动了提醒、头线圈、跳过进出动画、三档音量；静音一眼可见并记住
+- 不联网、不需要账号、不申请权限
+
+### v0.1.1 改了什么
+
+- 换成原生系统窗口 + 原生页签，系统拖动 / 关闭，删掉自制拖动条
+- 冷启动、「打开面板」小牌、[叫回面前] 都直接开窗，不再等平视
+- 返回键 / 手柄 B 不会退出应用（窗口关着时重新打开）
+- 扫描室 6 种声音换成 freesound 上的 CC0 真实磁共振录音
+- 英文导览不截断；捏合不再穿过卡片打到身后的墙
 
 ### 截图
 
 | | |
 |---|---|
-| ![准备](docs/01-ready.jpg) 准备：机架横在面前，主卡识别你是坐着还是躺着 | ![扫描室](docs/02-room.jpg) 扫描室：认识扫描室 + 三关，静音和设置一眼可见 |
-| ![导览](docs/03-tour.jpg) 导览：名签和引线指着呼叫球 | ![扫描中](docs/04-scan.jpg) 扫描中：躺在孔洞里，字幕条写着序列和进度 |
-| ![呼叫](docs/05-call.jpg) 呼叫技师：扫描停、台子滑出 | ![结果](docs/06-result.jpg) 结果：84 分「良」，时间线标出动的那几下 |
+| ![准备](docs/zh-01.jpg) 准备（躺姿）：机架在头顶，窗口识别你是躺着还是坐着 | ![扫描室](docs/zh-02.jpg) 扫描室：认识扫描室 + 三关，静音一眼可见 |
+| ![导览](docs/zh-03.jpg) 导览：机架与孔洞 | ![扫描中](docs/zh-04.jpg) 扫描中：T1 加权序列，进度和「请保持不动」 |
+| ![动了提醒](docs/zh-05.jpg) 动了提醒：静止环变红 | ![呼叫](docs/zh-06.jpg) 呼叫技师：扫描停、台子滑出 |
+| ![结果](docs/zh-07.jpg) 结果：84 分「良」，时间线标出动的那几下 | |
 
-截图来自 PICO Emulator 6.1（Graphics: High Definition），由调试广播跳到各个状态，**不是真实手势录像**。演示视频（Release 附件 `video-01.mp4`，51 秒，无声）也是调试输入驱动的第 1 轮版本，**非真实手势录像**。
+截图来自 PICO Emulator 6.1（Graphics: High Definition），由调试广播跳到各个状态，**不是真实手势录像**。演示视频（Release 附件 `video-01.mp4`，54 秒，无声，英文界面）也是模拟器上调试输入驱动的，**非真实手势录像**。
 
-### 安装
+### 已知问题
 
-从 [Release v0.1.0](https://github.com/kejing-dev/MriRehearsal/releases/tag/v0.1.0) 下载 `MriRehearsal-v0.1.0.apk`，然后：
-
-```bash
-adb install -r MriRehearsal-v0.1.0.apk
-```
-
-```bash
-pico-cli app launch io.embodit.mrirehearsal
-```
-
-需要 PICO OS 6（Spatial SDK 6.1.9），Full Space（Progressive，沉浸度 100 / 40 / 100）。
+- 仰躺时窗口开在脸的正上方（按开窗时的视线摆放）；低头或抬头时打开的窗口，回到平视后仍停在开窗处、并朝着当时的视线。点设置里的 [叫回面前] 或拖动系统窗口即可。
+- 按 HOME 后扫描室会关掉，窗口留在主空间、计时停住；从启动器再点一次应用，扫描室回来、从原处继续。
+- 模拟器上从点图标到窗口出现约 3.3 s（进程冷启动约 2.5 s），真机时间没测。
 
 ### 还没在真机上验证的
 
-手柄射线拖动系统窗口和扳机长按呼叫（模拟器不支持手柄）、仰卧时窗口开在脸上方、真人躺姿下的追踪和舒适度、扫描噪声的听感和音量、表冠降沉浸度、真机抖动下 4 mm / 1.5° 阈值会不会误报。
+手柄实体 B 键和返回键（模拟器只能注入按键）、真人躺姿下开窗的位置和舒适度、头显上低头 / 抬头时冷启动窗口出现的时间和摆位、扫描噪声的真机听感和响度、真机抖动下 4 mm / 1.5° 阈值会不会误报。
 
 ## English
 
 Rehearse an MRI scan at home. Lying on your own bed (or sitting), a life-size MRI scanner slides you into its 60 cm bore, the scan noise plays, and the headset measures how many millimetres and degrees your head moves. Take the room tour first, then practise stillness over three levels: 30 s → 2 min → 5 min.
 
-- **Room tour**: the gantry, the bore, the head coil, the call ball and the control-room window light up one by one while the panel explains them
+- **Room tour**: the gantry, the bore, the head coil, the call ball and the control-room window light up one by one while the window explains them
 - **Three stillness levels**: slide in → positioning countdown → scan sequences, with gaps where a caption warns "next one is louder / about the same / quieter"
-- **Call the technologist any time**: pinch and hold 0.4 s (or hold the controller trigger); the scan stops and the table slides out, with Resume / Restart this level / Finish on the panel
+- **Call the technologist any time**: pinch and hold 0.4 s (or hold the controller trigger); the scan stops and the table slides out, with Resume / Restart this level / Finish
 - **Results**: stillness score, grade and a timeline marking each movement, then next level or retry
-- **Settings**: Bring back in front and Quit app first; Chinese / English, 60 / 70 cm bore, movement hints, head coil, skip the slide animation, three-step volume; mute is always visible and remembered; a How to page for hands and controller
-- Every page is in one system window (native tabs: Scan / How to / About / Settings), moved and closed with the system controls under it; in the bore a readout stays on the bore
-- Offline, no account, no permissions; the scan noise is a CC0 recording of a real MRI scanner from freesound (by parabolix; bed motor by kedarda)
+- **One system window**: native tabs (Scan / How to / About / Settings), moved and closed with the system controls under it; after closing it, tap the "Open panel" chip in the scene or press BACK / controller B to open it again
+- **Settings**: Bring back in front, Quit app; Chinese / English, 60 / 70 cm bore, movement hints, head coil, skip the slide animation, three-step volume; mute is always visible and remembered
+- Offline, no account, no permissions
 
-Screenshots come from PICO Emulator 6.1 (High Definition graphics), jumped to each state by the debug broadcast — **not a recording of real hand input**. The demo video (`video-01.mp4` on the release, 51 s, silent) is also debug-driven and shows the round-1 build — **not real hand input**.
+### What changed in v0.1.1
 
-### Install
+- Native system window and native tabs; system move / close; the custom drag bar is gone
+- Cold start, the "Open panel" chip and Bring back in front open the window straight away, wherever you look
+- BACK / controller B never quits the app (it reopens the window when it is closed)
+- The six scan-room sounds are CC0 recordings of a real MRI scanner from freesound
+- The English tour no longer truncates; a pinch no longer passes through the window to the wall behind it
 
-Download `MriRehearsal-v0.1.0.apk` from [Release v0.1.0](https://github.com/kejing-dev/MriRehearsal/releases/tag/v0.1.0), then:
+### Screenshots
 
-```bash
-adb install -r MriRehearsal-v0.1.0.apk
-```
+| | |
+|---|---|
+| ![Ready](docs/en-01.jpg) Ready (lying down): the gantry above you; the window detects lying or sitting | ![Scan room](docs/en-02.jpg) Scan room: tour + three levels, mute always visible |
+| ![Tour](docs/en-03.jpg) Tour: gantry and bore | ![Scanning](docs/en-04.jpg) Scanning: T1 sequence, progress and "Please keep still" |
+| ![Movement](docs/en-05.jpg) Movement alert: the stillness ring turns red | ![Call](docs/en-06.jpg) Technologist called: the scan stops, the table slides out |
+| ![Result](docs/en-07.jpg) Result: 84, "Good", with the movements on the timeline | |
 
-```bash
-pico-cli app launch io.embodit.mrirehearsal
-```
+Screenshots come from PICO Emulator 6.1 (High Definition graphics), jumped to each state by the debug broadcast — **not a recording of real hand input**. The demo video (`video-01.mp4` on the release, 54 s, silent, English UI) is also driven by debug input on the emulator — **not real hand input**.
 
-Requires PICO OS 6 (Spatial SDK 6.1.9); Full Space (Progressive, immersion 100 / 40 / 100).
+### Known issues
+
+- Lying on your back, the window opens right above your face (it is placed along your gaze when it opens); a window opened while looking down or up stays there, facing that gaze, after you look ahead again. Use Settings → Bring back in front, or drag the system window.
+- After HOME the scan room closes while the window stays in the home space with the timer paused; tap the app in the launcher again and the room comes back where you left off.
+- On the emulator the window appears about 3.3 s after tapping the icon (process cold start is about 2.5 s); not measured on a headset.
 
 ### Not yet verified on a headset
 
-Dragging the system window with the controller ray and the trigger-hold call (the emulator has no controller), the window opening above the face when lying, tracking and comfort when really lying down, how the scan noise sounds and its volume, lowering immersion with the crown, and whether the 4 mm / 1.5° thresholds false-alarm with real head jitter.
+The physical controller B and BACK keys (the emulator only injects key events), where the window opens and how comfortable it is when really lying down, how fast and where the window appears on a cold start while looking down / up on a headset, how the scan noise sounds and how loud it is, and whether the 4 mm / 1.5° thresholds false-alarm with real head jitter.
 
 ## Build
 
@@ -85,8 +114,14 @@ See [AGENTS.md](AGENTS.md) for the build command, code layout, the debug broadca
 
 ```bash
 ./gradlew assembleDebug testDebugUnitTest
+./gradlew assembleRelease   # unsigned, for the Vibe Lab listing
 ```
+
+## Credits / 致谢
+
+- Scan-room sounds / 扫描室声音: "MRI fsk robot servo.wav" by parabolix (https://freesound.org/people/parabolix/sounds/320532/) and "motor adjustable bed.wav" by kedarda (https://freesound.org/people/kedarda/sounds/613865/), both Creative Commons 0 (CC0), trimmed, denoised and looped. The call and movement tones are synthesised.
+- Fonts / 字体: Noto Sans and Noto Sans SC, SIL Open Font License 1.1.
 
 ## License
 
-Private, all rights reserved. Bundled fonts Noto Sans / Noto Sans SC are under the SIL Open Font License 1.1.
+Private, all rights reserved. Bundled fonts are under the SIL Open Font License 1.1; the scan sounds are CC0 (see Credits).
