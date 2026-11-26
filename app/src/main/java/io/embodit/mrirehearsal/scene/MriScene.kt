@@ -21,6 +21,7 @@ import com.pico.spatial.core.math.Quat
 import com.pico.spatial.core.math.Vector3
 import com.pico.spatial.ui.foundation.content.SpatialViewAttachments
 import io.embodit.mrirehearsal.domain.BoreFit
+import io.embodit.mrirehearsal.domain.CaptionFit
 import io.embodit.mrirehearsal.domain.Occlusion
 import io.embodit.mrirehearsal.domain.Posture
 import io.embodit.mrirehearsal.domain.Q4
@@ -865,21 +866,48 @@ class MriScene(private val vm: MriViewModel, private val head: HeadTracker, priv
 
     /**
      * Where the caption strip is. Lying: on the bore's roof once the front face has passed the head (s ≥ 1.0, R2-7),
-     * radius − 0.015, [MriViewModel.captionOffset] towards the feet, scale 0.5; before that 0.6 m up and
-     * [CAPTION_PRE_AXIAL] towards the feet (28 degrees from straight up: clear of a window opened above the face, whose outline
-     * with its system controls reaches about 21 degrees), scale 0.8. Sitting: on the bore's far rim, 0.80 m ahead, 0.19 up (design 0.24), scale 1.0 (R2-2) — visible through the bore all
-     * the way.
+     * [MriViewModel.captionOffset] towards the feet, scale 0.5, at radius − 0.015 or lower: as high as all four corners
+     * stay [CaptionFit.CLEARANCE_M] inside the round wall (QA #7 q7-1, D35: at radius − 0.015 the turned strip's top
+     * corners were 1.5 cm in the wall, 60 and 70 cm). Before that 0.6 m up and [CAPTION_PRE_AXIAL] towards the feet
+     * (28 degrees from straight up: clear of a window opened above the face, whose outline with its system controls
+     * reaches about 21 degrees), scale 0.8. Sitting: on the bore's far rim, 0.80 m ahead, at most 0.19 up (design 0.24),
+     * scale 1.0 (R2-2), its corners fitted in the bore the same way — visible through the bore all the way.
      */
     private fun captionPlace(f: ScanFrame): Pair<V3, Float> {
         val r = vm.state.value.settings.boreRadius
         return if (f.posture == Posture.LIE) {
-            if (slide.s >= Slide.FACE_AT_HEAD) f.at(vm.captionOffset, 0f, r - 0.015f) to CAPTION_SCALE_LIE else f.at(CAPTION_PRE_AXIAL, 0f, 0.6f) to CAPTION_SCALE_PRE
+            if (slide.s >= Slide.FACE_AT_HEAD) {
+                val a = vm.captionOffset
+                f.at(a, 0f, captionUp(f, a, r - 0.015f, r, CAPTION_SCALE_LIE)) to CAPTION_SCALE_LIE
+            } else {
+                f.at(CAPTION_PRE_AXIAL, 0f, 0.6f) to CAPTION_SCALE_PRE
+            }
         } else {
-            // 0.19 up, not the design's 0.24: at scale 1.0 the strip is 0.336 × 0.077 m and its top corners reached a
-            // radius of 0.33 m, into the 0.30 m bore wall (emulator shot S04-t6)
-            f.at(-0.80f, 0f, 0.19f) to CAPTION_SCALE_SIT
+            // 0.19 up at most, not the design's 0.24: at scale 1.0 its top corners reached into the bore wall (emulator
+            // shot S04-t6); fitted to the corners since q7-1 (during the slide the strip is inside the bore)
+            f.at(CAPTION_SIT_AXIAL, 0f, captionUp(f, CAPTION_SIT_AXIAL, 0.19f, r, CAPTION_SCALE_SIT)) to CAPTION_SCALE_SIT
         }
     }
+
+    /** Height of the strip above the bore's axis with all four corners inside the wall (CaptionFit, q7-1). */
+    private fun captionUp(f: ScanFrame, axial: Float, preferred: Float, r: Float, scale: Float): Float {
+        val key = CaptionKey(f.h0, f.b, f.posture, axial, preferred, r, scale)
+        if (key == captionKey) return captionUpCached
+        val w = PanelSizes.CAPTION.width * CaptionFit.M_PER_DP * scale
+        val h = PanelSizes.CAPTION.height * CaptionFit.M_PER_DP * scale
+        val up = CaptionFit.fitUp(f, axial, preferred, r, panelUp(f), w, h)
+        if (captionKey == null || captionKey?.r != r || captionKey?.posture != f.posture) {
+            MriLog.i("CAPTION fit posture=${f.posture} r=$r axial=$axial up=${"%.4f".format(up)} (preferred $preferred) corner=${"%.4f".format(CaptionFit.maxCornerRadial(f, axial, up, f.h0, panelUp(f), w, h))}")
+        }
+        captionKey = key
+        captionUpCached = up
+        return up
+    }
+
+    private data class CaptionKey(val h0: V3, val b: V3, val posture: Posture, val axial: Float, val preferred: Float, val r: Float, val scale: Float)
+
+    private var captionKey: CaptionKey? = null
+    private var captionUpCached = 0f
 
     // ------------------------------------------------------------------------------------------ tour
 
@@ -988,6 +1016,7 @@ class MriScene(private val vm: MriViewModel, private val head: HeadTracker, priv
         const val CAPTION_PRE_AXIAL = 0.32f
         const val CAPTION_SCALE_LIE = 0.5f
         const val CAPTION_SCALE_PRE = 0.8f
+        const val CAPTION_SIT_AXIAL = -0.80f
         const val CAPTION_SCALE_SIT = 1.0f
         const val DP_M = 0.0008f
         const val LEADER_MIN_HEAD_M = 0.3f

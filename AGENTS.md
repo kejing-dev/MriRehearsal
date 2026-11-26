@@ -93,6 +93,8 @@ posture judge and the placement origin (`apps/mri-rehearsal/build/headpose-audit
 - [Bring back in front] (Settings first screen, scan page S02): close → wait for ON_DESTROY → open (an open right
   after a close is swallowed, native-window-move §3.5). The Stage chip "Open panel" shows while the window is closed
   (its ×) or minimised; a minimised window is restored where it was.
+- v0.1.3 (QA #7 q7-1): the readout's height in the bore is solved from its four corners (`domain/CaptionFit`): every
+  corner ≥ 1.5 cm inside the round wall for heads up to 3 cm off H0, 60 and 70 cm, lying and sitting; log `CAPTION fit`.
 - The in-bore readout (`CaptionStrip`, 420 × 108 dp) stays a reading fixed on the bore (template §3.6 / §6): in Full
   Space the window is where the user looked when it opened, 80° from the bore (sitting) or above the face (lying), so
   in the bore the user looks at the readout, not the window (on the emulator the window draws over the bore wall, it is
