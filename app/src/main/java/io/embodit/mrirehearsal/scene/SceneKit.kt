@@ -73,14 +73,16 @@ internal fun Entity.setOpacity(opacity: Float) {
 
 /** A box collider of full [size] (metres), so the system pointer (controller ray / gaze + pinch) can hit the entity. */
 internal fun Entity.addBoxCollider(size: V3) {
-    runCatching { components.set(CollisionComponent(listOf(ShapeResource.createBox(size.sdk())), PhysicsMaterialResource())) }
+    // D59: the shape and its physics material are global (toGlobal) so a scope ending never closes them under the collider
+    runCatching { components.set(CollisionComponent(listOf(ShapeResource.createBox(size.sdk()).also { it.toGlobal() }), PhysicsMaterialResource().also { it.toGlobal() })) }
 }
 
 /** A collider made of several boxes ((local centre, full size) pairs) — a wall with a hole cut out (QA q2-1). */
 internal fun Entity.setBoxColliders(boxes: List<Pair<V3, V3>>) {
     runCatching {
-        val shapes = boxes.map { (c, s) -> ShapeResource.createBox(s.sdk()).offsetByTranslation(c.sdk()) }
-        components.set(CollisionComponent(shapes, PhysicsMaterialResource()))
+        // D59: offsetByTranslation returns a new resource; both it and the material are made global (toGlobal)
+        val shapes = boxes.map { (c, s) -> ShapeResource.createBox(s.sdk()).also { it.toGlobal() }.offsetByTranslation(c.sdk()).also { it.toGlobal() } }
+        components.set(CollisionComponent(shapes, PhysicsMaterialResource().also { it.toGlobal() }))
     }
 }
 
@@ -91,11 +93,7 @@ internal fun Entity.setBoxColliders(boxes: List<Pair<V3, V3>>) {
 internal class SharedResources {
     private val owned = ArrayList<Resource>()
 
-    fun <T : Resource> keep(resource: T): T {
-        resource.toGlobal()
-        owned += resource
-        return resource
-    }
+    fun <T : Resource> keep(resource: T): T = resource.also { it.toGlobal(); owned += it }
 
     fun close() {
         owned.forEach { runCatching { it.close() } }

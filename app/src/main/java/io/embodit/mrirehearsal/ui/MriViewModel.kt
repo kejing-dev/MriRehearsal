@@ -17,6 +17,8 @@ import io.embodit.mrirehearsal.domain.NextLoudness
 import io.embodit.mrirehearsal.domain.Posture
 import io.embodit.mrirehearsal.domain.PostureJudge
 import io.embodit.mrirehearsal.domain.Q4
+import io.embodit.mrirehearsal.domain.BoreFit
+import io.embodit.mrirehearsal.domain.PostureFollow
 import io.embodit.mrirehearsal.domain.RunClock
 import io.embodit.mrirehearsal.domain.RunEngine
 import io.embodit.mrirehearsal.domain.RunResult
@@ -70,6 +72,7 @@ class MriViewModel(app: Application) : AndroidViewModel(app) {
     private val main = Handler(Looper.getMainLooper())
     private val audio = ScanAudio(app)
     private val postureJudge = PostureJudge()
+    private val postureFollow = PostureFollow()
     private val head = MriGraph.head
 
     val engine = RunEngine()
@@ -190,9 +193,19 @@ class MriViewModel(app: Application) : AndroidViewModel(app) {
         firstSequence = true
         resumeClock = null
         calledFrom = null
+        // device rework r5: the run scans the head as it is now (lying back after T1, head raised to the window at T1):
+        // posture judged again (unless set by hand), H0 and b taken again from this pose (BoreFit)
+        val cur = _state.value
+        val runPosture = BoreFit.postureAtRunStart(cur.posture, cur.postureManual, head.last?.forward?.y)
+        postureJudge.set(runPosture)
+        postureFollow.reset()
         _state.update {
-            it.copy(screen = Screen.S04, level = level, clock = RunClock(level), result = null, abandoning = false, pauseCardReady = false, caption = Caption.TableMoves, motion = Motion.STILL)
+            it.copy(
+                screen = Screen.S04, level = level, clock = RunClock(level), result = null, abandoning = false, pauseCardReady = false,
+                caption = Caption.TableMoves, motion = Motion.STILL, posture = runPosture, frameEpoch = it.frameEpoch + 1,
+            )
         }
+        MriLog.i("FRAME run-start posture=$runPosture (was ${cur.posture}, manual=${cur.postureManual})")
         audio.motor(true)
         command(SlideCommand.Mode.TO, Slide.RESUME_TARGET, Slide.SLOW, snap = _state.value.settings.skipSlide)
         MriLog.i("STATE -> S04 level=$level")
@@ -433,6 +446,24 @@ class MriViewModel(app: Application) : AndroidViewModel(app) {
                 _state.update { it.copy(posture = p, frameEpoch = it.frameEpoch + 1) }
                 MriLog.i("POSTURE auto=$p f.up=$forwardDotUp")
             }
+        }
+
+    /**
+     * The scene, every 0.5 s in the parked room (S02) and on the result page (S11): a posture change that holds
+     * [PostureFollow.HOLD_MS] (sat up / lay back after T1) lays the room out again from the head pose (device rework r5).
+     */
+    fun onPostureOutsideRun(forwardDotUp: Float, nowMs: Long) =
+        main.post {
+            val s = _state.value
+            if ((s.screen != Screen.S02 && s.screen != Screen.S11) || s.postureManual) {
+                postureFollow.reset()
+                return@post
+            }
+            val judged = PostureJudge(s.posture).feed(forwardDotUp)
+            val p = postureFollow.feed(judged, s.posture, nowMs) ?: return@post
+            postureJudge.set(p)
+            _state.update { it.copy(posture = p, frameEpoch = it.frameEpoch + 1) }
+            MriLog.i("POSTURE follow=$p f.up=$forwardDotUp screen=${s.screen}")
         }
 
     /** The scene, ten times a second while judging (S06). */

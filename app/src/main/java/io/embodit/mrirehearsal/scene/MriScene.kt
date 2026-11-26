@@ -20,6 +20,7 @@ import com.pico.spatial.core.math.Color4
 import com.pico.spatial.core.math.Quat
 import com.pico.spatial.core.math.Vector3
 import com.pico.spatial.ui.foundation.content.SpatialViewAttachments
+import io.embodit.mrirehearsal.domain.BoreFit
 import io.embodit.mrirehearsal.domain.Occlusion
 import io.embodit.mrirehearsal.domain.Posture
 import io.embodit.mrirehearsal.domain.Q4
@@ -199,6 +200,8 @@ class MriScene(private val vm: MriViewModel, private val head: HeadTracker, priv
     private var frame = 0L
     private var scanFrame: ScanFrame? = null
     private var frameEpoch = -1
+    private var boreLogged = -1
+    private var boreLoggedMs = 0L
     private var layoutPosture: Posture? = null
     private var slide = Slide()
     private var appliedSlide = -1
@@ -559,6 +562,11 @@ class MriScene(private val vm: MriViewModel, private val head: HeadTracker, priv
             lastPostureMs = now
             vm.onPostureReading(pose.forward.y)
         }
+        // device rework r5: sat up / lay back after T1 -> the parked room and the result page follow (BoreFit)
+        if ((state.screen == Screen.S02 || state.screen == Screen.S11) && now - lastPostureMs >= POSTURE_MS) {
+            lastPostureMs = now
+            vm.onPostureOutsideRun(pose.forward.y, now)
+        }
 
         // the room's frame: T1, T10, posture changes in S01, every window open outside a run (D9: from the current
         // head pose; sitting, around the direction the window opened in: WindowLayout, the one placement function)
@@ -567,7 +575,10 @@ class MriScene(private val vm: MriViewModel, private val head: HeadTracker, priv
             val around = if (state.posture == Posture.SIT) vm.windowRotation ?: pose.rotation else pose.rotation
             val win = vm.windowRect
             val fr = WindowLayout.frameFor(pose.position, around, state.posture, win)
+            // device rework r5: a frame taken again (run start, posture follow) fades the room in instead of jumping
+            if (BoreFit.jumps(scanFrame, fr)) fadeIn = 0f
             scanFrame = fr
+            boreLogged = -1
             // q5-1: the window's outline (with the head pitch it opened at) against the gantry at park, both eyes
             val sep = win?.let { WindowLayout.separationBothEyesDeg(pose.position, around, WindowLayout.outline(it), WindowLayout.gantryBox(fr, 0f)) }
             MriLog.i(
@@ -598,6 +609,7 @@ class MriScene(private val vm: MriViewModel, private val head: HeadTracker, priv
             vm.onArrived(appliedSlide, slide.s)
         }
         vm.worldOffset = slide.s
+        logBore(state, pose, f, now)
         fadeIn = (fadeIn + dt / FADE_SEC).coerceAtMost(1f)
 
         // room fade-in after start (S00: black, then the room)
@@ -721,6 +733,24 @@ class MriScene(private val vm: MriViewModel, private val head: HeadTracker, priv
     private fun sittingCoil(towardsWindow: Boolean, gantryYawDeg: Float): Q4 {
         val axisUp = Q4.axisAngle(V3.RIGHT, -90f)
         return if (towardsWindow) (Q4.axisAngle(V3.UP, gantryYawDeg) * axisUp).normalized() else axisUp
+    }
+
+    /**
+     * Device rework r5: where the eyes are in the bore, for the headset check (1:1: at s = 1.8 the eyes are on the axis,
+     * 0.30 m under the roof of the 60 cm bore). Logged when the frame is taken, when the slide arrives at the isocentre
+     * and every 5 s inside the bore: `BORE s= axial= lateral= up= offAxis= roof= posture= f.up=`.
+     */
+    private fun logBore(state: UiState, pose: HeadPose, f: ScanFrame, now: Long) {
+        val inside = slide.s >= Slide.MAX - 0.001f
+        val key = if (boreLogged < 0) 0 else if (inside && (boreLogged == 0 || now - boreLoggedMs >= BORE_LOG_MS)) 1 else return
+        if (key == 1 && !state.screen.watchesTracking) return
+        boreLogged = key
+        boreLoggedMs = now
+        val b = BoreFit.inBore(f, slide.s, pose.position, state.settings.boreRadius)
+        MriLog.i(
+            "BORE screen=${state.screen} s=${"%.2f".format(slide.s)} axial=${"%.3f".format(b.axial)} lateral=${"%.3f".format(b.lateral)} " +
+                "up=${"%.3f".format(b.up)} offAxis=${"%.3f".format(b.offAxisM)} roof=${"%.3f".format(b.roofM)} posture=${f.posture} f.up=${"%.2f".format(pose.forward.y)}",
+        )
     }
 
     /** Positions that depend only on the frame's posture (room heights, table, coil axis). */
@@ -944,6 +974,7 @@ class MriScene(private val vm: MriViewModel, private val head: HeadTracker, priv
 
     companion object {
         const val LIGHT_LUX = 1800f
+        const val BORE_LOG_MS = 5000L
         const val ROOM_W = 5.0f
         const val ROOM_L = 6.0f
         const val ROOM_H = 2.9f

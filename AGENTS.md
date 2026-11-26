@@ -4,7 +4,7 @@ A PICO OS 6 Spatial SDK app (Kotlin + ECS, BOM 6.1.9). Lying on your own bed (or
 slides you into its 60 cm bore, the scan noise plays, and the headset measures how far your head moves: a room tour,
 then 30 s, 2 min and 5 min scans scored for stillness. Fully offline, no permissions, Chinese / English in the app.
 
-- Package / applicationId: `io.embodit.mrirehearsal`, version 0.1.1 (versionCode 2)
+- Package / applicationId: `io.embodit.mrirehearsal`, version 0.1.2 (versionCode 5)
 - Containers: the default Stage, **Progressive**, immersion 100 / 40 / 100 (`AndroidManifest.xml`) for the scan room,
   plus **one Planar WindowContainer** `MriWindow` (640 × 620 dp) for every 2D page (v0.1.1, factory
   `prompts/snippets/native-window-move.md`): native SpatialUI TabBar (Scan / How to / About / Settings), the system's
@@ -82,6 +82,12 @@ posture judge and the placement origin (`apps/mri-rehearsal/build/headpose-audit
   callbacks, every root view of the process incl. the TabBar's, the window's Compose root and each tab), one handler
   `MriShared.onBack`: window closed = open it again, open (or opening) = nothing. Never exits, never goes to the
   background. A / X / Y / ENTER / DPAD_CENTER are eaten in the window; no window control can take focus.
+- v0.1.2 (gate C device rework, 2026-11-24 "the thing above my head is in the way" = gantry / bore): every run start
+  (level buttons, restart) takes H0 / b again from the head pose of that moment and judges the posture again unless it
+  was set by hand (`domain/BoreFit`); in S02 / S11 a posture change held 3 s lays the room out again (`PostureFollow`);
+  a re-take that moves the room > 3 cm / 3° fades it. Log lines `FRAME run-start`, `POSTURE follow`, and
+  `BORE s= axial= lateral= up= offAxis= roof=` (frame taken, at the isocentre, every 5 s in the bore) for headset checks.
+  Unit tests `BoreFitTest`.
 - Every window open outside a run (S00–S03, S11) re-lays the room around the new window (`MriViewModel.onWindowOpened`).
   Inside a run the room stays; a call (S09) slides the world back to park, where the gantry clears the window again.
 - [Bring back in front] (Settings first screen, scan page S02): close → wait for ON_DESTROY → open (an open right
@@ -138,7 +144,7 @@ later. Start every shot series with `reset` (clears timers, offsets, frozen / lo
 | `state` | any | one log line: screen, segment, d (mm), θ (°), motion, events, minor seconds, score, s, posture |
 | `dump` | Stage running | head pose, frame, s, the Stage panels' positions |
 
-Log lines worth grepping: `WINDOW ask|open|opened|ON_*`, `LEVEL hint|ok`, `RECALL`, `TAB`, `PAGE`, `QUIT`, `EXIT`,
+Log lines worth grepping: `FRAME`, `BORE`, `POSTURE follow`, `WINDOW ask|open|opened|ON_*`, `LEVEL hint|ok`, `RECALL`, `TAB`, `PAGE`, `QUIT`, `EXIT`,
 `OVERFLOW <panel>/<text>` (a fixed-line text that does not fit; run every state in English), `COLORS` (theme roles,
 for the contrast table), `STATE ->`.
 
